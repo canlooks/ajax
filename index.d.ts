@@ -1,0 +1,137 @@
+/// <reference path="./types.d.ts"/>
+
+export type Method =
+    'get' | 'GET' |
+    'delete' | 'DELETE' |
+    'head' | 'HEAD' |
+    'options' | 'OPTIONS' |
+    'post' | 'POST' |
+    'put' | 'PUT' |
+    'patch' | 'PATCH' |
+    'purge' | 'PURGE' |
+    'link' | 'LINK' |
+    'unlink' | 'UNLINK'
+
+export type ProgressCallback = (progressEvent: ProgressEvent) => void
+
+export type AjaxConfig<T> = {
+    url?: string
+    method?: Method
+    headers?: Record<string, any>
+    params?: any
+    data?: any
+    timeout?: number
+    abortToken?: AbortToken
+    auth?: {
+        username: string
+        password: string
+    }
+    responseType?: XMLHttpRequestResponseType | 'stream'
+    withCredentials?: boolean
+    validateStatus?: ((status: number) => boolean) | null | false
+    onSuccess?(data: ResponseType<T>): void
+    onTimeout?(error: AjaxTimeout): void
+    onError?(error: AjaxError<T>): void
+    onComplete?(data: ResponseType<T> | undefined, error: AjaxError<T> | undefined): void
+    onAbort?(error: AjaxAbort): void
+    onUploadProgress?: ProgressCallback
+    onDownloadProgress?: ProgressCallback
+    maxRedirects?: number
+    maxBodyLength?: number
+    maxContentLength?: number
+    decompress?: boolean
+}
+
+declare class AbortToken {
+    on(callback: Fn): void
+
+    off(callback: Fn): void
+
+    abort(): void
+}
+
+declare class AjaxError<T> extends Error {
+    message: string
+    config: AjaxConfig<T>
+    instance?: any
+    error?: Error
+}
+
+declare class NetworkError<T> extends AjaxError<T> {
+    type: 'network error'
+}
+
+declare class AjaxAbort extends AjaxError<any> {
+    type: 'abort'
+}
+
+declare class AjaxTimeout extends AjaxError<any> {
+    type: 'timeout'
+}
+
+interface AjaxInstance<T> extends Promise<T> {
+    abort(): void
+}
+
+type ResponseType<T> = {
+    data: T
+    config: AjaxConfig<T>
+    instance: any
+    status: number
+    statusText: string
+    rawHeaders?: string
+    headers: Record<string, number | string | string[]>
+}
+
+type Ajax = {
+    <T = any>(config?: AjaxConfig<T>): AjaxInstance<ResponseType<T>>
+
+    get: AliasWithoutData
+    delete: AliasWithoutData
+    head: AliasWithoutData
+    options: AliasWithoutData
+
+    post: AliasWithData
+    put: AliasWithData
+    patch: AliasWithData
+}
+
+type AliasWithoutData = <T = any>(url: string, config?: AjaxConfig<T>) => AjaxInstance<ResponseType<T>>
+type AliasWithData = <T = any>(url: string, data: any, config?: AjaxConfig<T>) => AjaxInstance<ResponseType<T>>
+
+declare const ajax: Ajax
+
+declare class HttpService {
+    defaultConfig: AjaxConfig<any>
+
+    protected beforeRequest?(config: AjaxConfig<any>): AjaxConfig<any> | Promise<AjaxConfig<any>>
+
+    protected beforeSuccess?(data: any, config: AjaxConfig<any>): any
+
+    protected onSuccess?(data: any, config: AjaxConfig<any>): void
+
+    protected beforeFailed?(error: AjaxError<any>, config: AjaxConfig<any>): any
+
+    protected onFailed?(error: AjaxError<any>, config: AjaxConfig<any>): void
+
+    protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+
+    protected put<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+
+    protected patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+
+    protected get<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+
+    protected delete<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+
+    protected head<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+
+    protected options<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+
+    protected request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+}
+
+type ServiceDecorator = <T extends typeof HttpService>(target: T) => T
+
+declare function extender(url: string): ServiceDecorator
+declare function extender(config: AjaxConfig<any>): ServiceDecorator
