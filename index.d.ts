@@ -114,21 +114,21 @@ declare class HttpService {
 
     protected onFailed?(error: AjaxError<any>, config: AjaxConfig<any>): void
 
-    protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
-    protected put<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected put<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
-    protected patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
-    protected get<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected get<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
 
-    protected delete<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected delete<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
 
-    protected head<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected head<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
 
-    protected options<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected options<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
 
-    protected request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 }
 
 type ServiceDecorator = <T extends typeof HttpService>(target: T) => T
