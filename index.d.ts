@@ -1,5 +1,3 @@
-/// <reference path="./types.d.ts"/>
-
 export type Method =
     'get' | 'GET' |
     'delete' | 'DELETE' |
@@ -42,10 +40,12 @@ export type AjaxConfig<T> = {
     decompress?: boolean
 }
 
-declare class AbortToken {
-    on(callback: Fn): void
+export type Cb = (...a: any[]) => any
 
-    off(callback: Fn): void
+declare class AbortToken {
+    on(callback: Cb): void
+
+    off(callback: Cb): void
 
     abort(): void
 }

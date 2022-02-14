@@ -1,11 +1,13 @@
-export class AbortToken {
-    private callbacks = new Set<Fn>()
+import {Cb} from '../index'
 
-    on(callback: Fn) {
+export class AbortToken {
+    private callbacks = new Set<Cb>()
+
+    on(callback: Cb) {
         this.callbacks.add(callback)
     }
 
-    off(callback: Fn) {
+    off(callback: Cb) {
         this.callbacks.delete(callback)
     }
 

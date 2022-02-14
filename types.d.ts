@@ -1,1 +1,0 @@
-type Fn = (...a: any[]) => any
