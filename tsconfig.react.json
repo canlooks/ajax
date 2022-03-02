@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "CommonJS",
+    "strict": true
+  },
+  "include": [
+    "react/index.ts"
+  ]
+}
