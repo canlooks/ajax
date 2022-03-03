@@ -133,5 +133,5 @@ declare class HttpService {
 
 type ServiceDecorator = <T extends typeof HttpService>(target: T) => T
 
-declare function extender(url: string): ServiceDecorator
-declare function extender(config: AjaxConfig<any>): ServiceDecorator
+declare function extender(url?: string): ServiceDecorator
+declare function extender(config?: AjaxConfig<any>): ServiceDecorator

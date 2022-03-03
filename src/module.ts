@@ -107,7 +107,7 @@ async function intercept<T>(ctx: HttpService, mainFn: (...a: any[]) => any, inte
 
 const allDefaultConfig = new WeakMap<HttpService, AjaxConfig<any>>()
 
-export function extender(a: any) {
+export function extender(a: any = {}) {
     let extendConfig = typeof a === 'object' ? a : {url: a}
     return (target: typeof HttpService) => {
         return class extends target {
