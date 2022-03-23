@@ -1,6 +1,12 @@
 import {ajax} from './adapter'
-import {AjaxConfig, Method, ResponseType} from '../index'
+import {AjaxConfig, AjaxInstance, Method, ResponseType} from '../index'
 import {AjaxError} from './error'
+
+let customAdapter = ajax
+
+export function registerAdapter(adapter: <T = any>(config?: AjaxConfig<T>) => AjaxInstance<ResponseType<T>>) {
+    customAdapter = adapter
+}
 
 export class HttpService {
     defaultConfig: AjaxConfig<any> = {}
@@ -46,7 +52,7 @@ export class HttpService {
     protected async request<T>(method: Method, url: string, data?: any, config?: AjaxConfig<T>) {
         let mergedConfig = mergeConfig(this.defaultConfig, config, {method, url, data})
         mergedConfig = await this.beforeRequest?.(mergedConfig) || mergedConfig
-        return await intercept(this, () => ajax(mergedConfig), {
+        return await intercept(this, () => customAdapter(mergedConfig), {
             beforeSuccess: this.beforeSuccess,
             onSuccess: this.onSuccess,
             beforeFailed: this.beforeFailed,

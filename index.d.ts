@@ -83,9 +83,15 @@ type ResponseType<T> = {
     headers: Record<string, number | string | string[]>
 }
 
-type Ajax = {
-    <T = any>(config?: AjaxConfig<T>): AjaxInstance<ResponseType<T>>
+type AdapterReturn<T> = AjaxInstance<ResponseType<T>>
 
+type Adapter = <T = any>(config?: AjaxConfig<T>) => AdapterReturn<T>
+
+type AliasWithoutData = <T = any>(url: string, config?: AjaxConfig<T>) => AdapterReturn<T>
+
+type AliasWithData = <T = any>(url: string, data: any, config?: AjaxConfig<T>) => AdapterReturn<T>
+
+interface Ajax extends Adapter {
     get: AliasWithoutData
     delete: AliasWithoutData
     head: AliasWithoutData
@@ -96,10 +102,9 @@ type Ajax = {
     patch: AliasWithData
 }
 
-type AliasWithoutData = <T = any>(url: string, config?: AjaxConfig<T>) => AjaxInstance<ResponseType<T>>
-type AliasWithData = <T = any>(url: string, data: any, config?: AjaxConfig<T>) => AjaxInstance<ResponseType<T>>
-
 declare const ajax: Ajax
+
+declare function registerAdapter(adapter: Adapter): void
 
 declare class HttpService {
     defaultConfig: AjaxConfig<any>
