@@ -1,10 +1,10 @@
 import {ajax} from './adapter'
-import {AjaxConfig, AjaxInstance, Method, ResponseType} from '../index'
+import {AjaxConfig, Method, ResponseType} from '../index'
 import {AjaxError} from './error'
 
 let customAdapter = ajax
 
-export function registerAdapter(adapter: <T = any>(config?: AjaxConfig<T>) => AjaxInstance<ResponseType<T>>) {
+export function registerAdapter(adapter: (config?: AjaxConfig<any>) => any) {
     customAdapter = adapter
 }
 

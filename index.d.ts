@@ -104,7 +104,7 @@ interface Ajax extends Adapter {
 
 declare const ajax: Ajax
 
-declare function registerAdapter(adapter: Adapter): void
+declare function registerAdapter(adapter: (config?: AjaxConfig<any>) => any): void
 
 declare class HttpService {
     defaultConfig: AjaxConfig<any>
