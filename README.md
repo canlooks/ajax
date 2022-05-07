@@ -95,6 +95,11 @@ type ResponseType<T> = {
 
 ## Modularization
 
+### Extender decorator
+
+- @extender(url?: string)
+- @extender(config?: AjaxConfig<any>)
+
 ### example
 
 ```ts
@@ -119,7 +124,7 @@ export default class RootService extends HttpService {
         return res.data
     }
 
-    beforeFail?(error: AjaxError<any>, config: AjaxConfig<any>) {
+    beforeFail(error: AjaxError<any>, config: AjaxConfig<any>) {
         // Judge your own logic
         if (error.message === 'ignore') {
             // Make this request success and change return value
@@ -129,11 +134,11 @@ export default class RootService extends HttpService {
         throw Error('Another error')
     }
 
-    onSuccess?(data: any, config: AjaxConfig<any>) {
+    onSuccess(data: any, config: AjaxConfig<any>) {
         // Do something when each request success.
     }
 
-    onFail?(error: AjaxError<any>, config: AjaxConfig<any>) {
+    onFail(error: AjaxError<any>, config: AjaxConfig<any>) {
         // Do something when each request fail.
     }
 }
@@ -158,11 +163,6 @@ new ExampleService().myFn()
 // The final request url is "https://baidu.com/search/test"
 // and data is "{a: 572}"
 ```
-
-### Extender decorator
-
-- @extender(url?: string)
-- @extender(config?: AjaxConfig<any>)
 
 ## Use with React
 
