@@ -5,6 +5,7 @@
     "strict": true
   },
   "include": [
-    "react/index.ts"
+    "react/index.ts",
+    "vue/index.ts"
   ]
 }

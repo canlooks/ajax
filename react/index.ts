@@ -11,16 +11,15 @@ export function connect(connector: Record<string, typeof HttpService>) {
                 super(...a)
                 let abortToken = new AbortToken()
                 allAbortToken.set(this, abortToken)
-                let http: any = {}
                 Object.keys(connector).forEach(k => {
-                    let service = http[k] = new connector[k]()
+                    let service = this[k] = new connector[k]()
                     service.defaultConfig.abortToken = abortToken
                 })
-                this.http = http
             }
 
             componentWillUnmount() {
                 allAbortToken.get(this)!.abort()
+                allAbortToken.delete(this)
                 super.componentWillUnmount?.()
             }
         }

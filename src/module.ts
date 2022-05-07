@@ -17,36 +17,36 @@ export class HttpService {
 
     protected onSuccess?(data: any, config: AjaxConfig<any>): void
 
-    protected beforeFailed?(error: AjaxError<any>, config: AjaxConfig<any>): any
+    protected beforeFail?(error: AjaxError<any>, config: AjaxConfig<any>): any
 
-    protected onFailed?(error: AjaxError<any>, config: AjaxConfig<any>): void
+    protected onFail?(error: AjaxError<any>, config: AjaxConfig<any>): void
 
     protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
-        return this.request('post', url, data, config)
+        return this.request('POST', url, data, config)
     }
 
     protected put<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
-        return this.request('put', url, data, config)
+        return this.request('PUT', url, data, config)
     }
 
     protected patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
-        return this.request('patch', url, data, config)
+        return this.request('PATCH', url, data, config)
     }
 
     protected get<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
-        return this.request('get', url, void 0, config)
+        return this.request('GET', url, void 0, config)
     }
 
     protected delete<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
-        return this.request('delete', url, void 0, config)
+        return this.request('DELETE', url, void 0, config)
     }
 
     protected head<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
-        return this.request('head', url, void 0, config)
+        return this.request('HEAD', url, void 0, config)
     }
 
     protected options<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
-        return this.request('options', url, void 0, config)
+        return this.request('OPTIONS', url, void 0, config)
     }
 
     protected async request<T>(method: Method, url: string, data?: any, config?: AjaxConfig<T>) {
@@ -55,8 +55,8 @@ export class HttpService {
         return await intercept(this, () => customAdapter(mergedConfig), {
             beforeSuccess: this.beforeSuccess,
             onSuccess: this.onSuccess,
-            beforeFailed: this.beforeFailed,
-            onFailed: this.onFailed,
+            beforeFail: this.beforeFail,
+            onFail: this.onFail,
         }, mergedConfig)
     }
 }
@@ -88,8 +88,8 @@ type Interceptor = (a: any, config: AjaxConfig<any>) => any
 async function intercept<T>(ctx: HttpService, mainFn: (...a: any[]) => any, interceptors: {
     beforeSuccess?: Interceptor
     onSuccess?: Interceptor
-    beforeFailed?: Interceptor
-    onFailed?: Interceptor
+    beforeFail?: Interceptor
+    onFail?: Interceptor
 } = {}, config: AjaxConfig<T>): Promise<any> {
     let res
     try {
@@ -98,13 +98,13 @@ async function intercept<T>(ctx: HttpService, mainFn: (...a: any[]) => any, inte
             res = await interceptors.beforeSuccess.call(ctx, res, config)
         }
     } catch (e) {
-        if (interceptors.beforeFailed) {
-            return await intercept(ctx, () => interceptors.beforeFailed!.call(ctx, e, config), {
-                onFailed: interceptors.onFailed,
+        if (interceptors.beforeFail) {
+            return await intercept(ctx, () => interceptors.beforeFail!.call(ctx, e, config), {
+                onFail: interceptors.onFail,
                 onSuccess: interceptors.onSuccess
             }, config)
         }
-        interceptors.onFailed?.call(ctx, e, config)
+        interceptors.onFail?.call(ctx, e, config)
         throw e
     }
     interceptors.onSuccess?.call(ctx, res, config)

@@ -2,18 +2,13 @@ import {AjaxConfig} from '../index'
 import {ClientRequest} from 'http'
 
 export class AjaxError<T> extends Error {
-    type?: string
-    message: string
-    config: AjaxConfig<T>
-    instance?: XMLHttpRequest | ClientRequest
-    error?: Error
-
-    constructor(message: string, config: AjaxConfig<T>, instance: XMLHttpRequest | ClientRequest, originError?: Error) {
+    constructor(
+        public message: string,
+        public config: AjaxConfig<T>,
+        public instance: XMLHttpRequest | ClientRequest,
+        public error?: Error
+    ) {
         super(message)
-        this.message = message
-        this.config = config
-        this.instance = instance
-        this.error = originError
     }
 }
 

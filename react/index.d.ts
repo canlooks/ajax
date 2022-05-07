@@ -1,5 +1,5 @@
 import {ComponentClass} from 'react'
-import {HttpService} from '@canlooks/ajax'
+import {HttpService} from '../dist'
 
 export function connect(connector: Record<string, typeof HttpService>): <T extends ComponentClass<any>>(target: T) => T
 
