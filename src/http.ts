@@ -168,7 +168,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function, originError?: Error): AjaxError<T> {
         error = new ErrorClass<T>(message, config, req, originError)
         callback?.(error)
-        reject(error)
+        config.silentAbort === false && reject(error)
         return error
     }
 }

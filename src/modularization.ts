@@ -4,22 +4,22 @@ import {AjaxError} from './error'
 
 let customAdapter = ajax
 
-export function registerAdapter(adapter: (config?: AjaxConfig<any>) => any) {
+export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
     customAdapter = adapter
 }
 
 export class HttpService {
-    defaultConfig: AjaxConfig<any> = {}
+    mergedConfig: AjaxConfig = {}
 
-    protected beforeRequest?(config: AjaxConfig<any>): AjaxConfig<any> | Promise<AjaxConfig<any>>
+    protected beforeRequest?(config: AjaxConfig): AjaxConfig | Promise<AjaxConfig>
 
-    protected beforeSuccess?(data: any, config: AjaxConfig<any>): any
+    protected beforeSuccess?(data: any, config: AjaxConfig): any
 
-    protected onSuccess?(data: any, config: AjaxConfig<any>): void
+    protected onSuccess?(data: any, config: AjaxConfig): void
 
-    protected beforeFail?(error: AjaxError<any>, config: AjaxConfig<any>): any
+    protected beforeFail?(error: AjaxError, config: AjaxConfig): any
 
-    protected onFail?(error: AjaxError<any>, config: AjaxConfig<any>): void
+    protected onFail?(error: AjaxError, config: AjaxConfig): void
 
     protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
         return this.request('POST', url, data, config)
@@ -50,18 +50,31 @@ export class HttpService {
     }
 
     protected async request<T>(method: Method, url: string, data?: any, config?: AjaxConfig<T>) {
-        let mergedConfig = mergeConfig(this.defaultConfig, config, {method, url, data})
+        let mergedConfig = mergeConfig(this.mergedConfig, config, {method, url, data})
         mergedConfig = await this.beforeRequest?.(mergedConfig) || mergedConfig
-        return await intercept(this, () => customAdapter(mergedConfig), {
-            beforeSuccess: this.beforeSuccess,
-            onSuccess: this.onSuccess,
-            beforeFail: this.beforeFail,
-            onFail: this.onFail,
-        }, mergedConfig)
+        return await this.intercept(() => customAdapter(mergedConfig), mergedConfig)
+    }
+
+    private async intercept(action: (...a: any[]) => any, config: AjaxConfig): Promise<ResponseType<any>> {
+        let res
+        try {
+            res = await action()
+            if (this.beforeSuccess) {
+                res = await this.beforeSuccess(res, config)
+            }
+        } catch (e: any) {
+            if (this.beforeFail) {
+                return await this.intercept(() => this.beforeFail!(e, config), config)
+            }
+            this.onFail?.(e, config)
+            throw e
+        }
+        this.onSuccess?.(res, config)
+        return res
     }
 }
 
-function mergeConfig(...config: (AjaxConfig<any> | undefined)[]) {
+function mergeConfig(...config: (AjaxConfig | undefined)[]) {
     let ret = config[0] || {}
     for (let i = 1, {length} = config; i < length; i++) {
         let next = config[i]
@@ -83,44 +96,13 @@ function combineUrl(baseURL = '', relativeURL?: string) {
     return baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
 }
 
-type Interceptor = (a: any, config: AjaxConfig<any>) => any
-
-async function intercept<T>(ctx: HttpService, mainFn: (...a: any[]) => any, interceptors: {
-    beforeSuccess?: Interceptor
-    onSuccess?: Interceptor
-    beforeFail?: Interceptor
-    onFail?: Interceptor
-} = {}, config: AjaxConfig<T>): Promise<any> {
-    let res
-    try {
-        res = await mainFn()
-        if (interceptors.beforeSuccess) {
-            res = await interceptors.beforeSuccess.call(ctx, res, config)
-        }
-    } catch (e) {
-        if (interceptors.beforeFail) {
-            return await intercept(ctx, () => interceptors.beforeFail!.call(ctx, e, config), {
-                onFail: interceptors.onFail,
-                onSuccess: interceptors.onSuccess
-            }, config)
-        }
-        interceptors.onFail?.call(ctx, e, config)
-        throw e
-    }
-    interceptors.onSuccess?.call(ctx, res, config)
-    return res
-}
-
-const allDefaultConfig = new WeakMap<HttpService, AjaxConfig<any>>()
-
 export function extender(a: any = {}) {
     let extendConfig = typeof a === 'object' ? a : {url: a}
     return (target: typeof HttpService) => {
         return class extends target {
             constructor() {
                 super()
-                let prevConfig = allDefaultConfig.get(this)
-                allDefaultConfig.set(this, this.defaultConfig = mergeConfig(prevConfig, extendConfig))
+                this.mergedConfig = mergeConfig(this.mergedConfig, extendConfig)
             }
         }
     }

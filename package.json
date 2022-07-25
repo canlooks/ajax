@@ -1,6 +1,6 @@
 {
   "name": "@canlooks/ajax",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "A private tool",
   "author": "C.CanLiang <canlooks@gmail.com>",
   "license": "MIT",
@@ -33,15 +33,15 @@
     "email": "canlooks@gmail.com"
   },
   "dependencies": {
-    "follow-redirects": "^1.14.6"
+    "follow-redirects": "^1.15.1"
   },
   "devDependencies": {
-    "@types/follow-redirects": "^1.13.1",
-    "@types/node": "^17.0.0",
-    "@types/react": "^17.0.39",
-    "mocha": "^9.1.3",
+    "@types/follow-redirects": "^1.14.1",
+    "@types/node": "^18.6.1",
+    "@types/react": "^17.0.47",
+    "mocha": "^10.0.0",
     "react": "^17.0.2",
-    "ts-node": "^10.4.0",
-    "typescript": "^4.5.4"
+    "ts-node": "^10.9.1",
+    "typescript": "^4.7.4"
   }
 }

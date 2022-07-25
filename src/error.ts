@@ -1,7 +1,7 @@
 import {AjaxConfig} from '../index'
 import {ClientRequest} from 'http'
 
-export class AjaxError<T> extends Error {
+export class AjaxError<T = any> extends Error {
     constructor(
         public message: string,
         public config: AjaxConfig<T>,
@@ -16,10 +16,10 @@ export class NetworkError<T> extends AjaxError<T> {
     type = 'network error'
 }
 
-export class AjaxAbort extends AjaxError<any> {
+export class AjaxAbort extends AjaxError {
     type = 'abort'
 }
 
-export class AjaxTimeout extends AjaxError<any> {
+export class AjaxTimeout extends AjaxError {
     type = 'timeout'
 }

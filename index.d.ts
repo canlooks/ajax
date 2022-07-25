@@ -12,7 +12,7 @@ export type Method =
 
 export type ProgressCallback = (progressEvent: ProgressEvent) => void
 
-export type AjaxConfig<T> = {
+export type AjaxConfig<T = any> = {
     url?: string
     method?: Method
     headers?: Record<string, any>
@@ -20,6 +20,7 @@ export type AjaxConfig<T> = {
     data?: any
     timeout?: number
     abortToken?: AbortToken
+    silentAbort?: boolean
     auth?: {
         username: string
         password: string
@@ -104,20 +105,20 @@ interface Ajax extends Adapter {
 
 declare const ajax: Ajax
 
-declare function registerAdapter(adapter: (config?: AjaxConfig<any>) => any): void
+declare function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
 declare class HttpService {
-    defaultConfig: AjaxConfig<any>
+    defaultConfig: AjaxConfig
 
-    protected beforeRequest?(config: AjaxConfig<any>): AjaxConfig<any> | Promise<AjaxConfig<any>>
+    protected beforeRequest?(config: AjaxConfig): AjaxConfig | Promise<AjaxConfig>
 
-    protected beforeSuccess?(data: any, config: AjaxConfig<any>): any
+    protected beforeSuccess?(data: any, config: AjaxConfig): any
 
-    protected onSuccess?(data: any, config: AjaxConfig<any>): void
+    protected onSuccess?(data: any, config: AjaxConfig): void
 
-    protected beforeFailed?(error: AjaxError<any>, config: AjaxConfig<any>): any
+    protected beforeFailed?(error: AjaxError<any>, config: AjaxConfig): any
 
-    protected onFailed?(error: AjaxError<any>, config: AjaxConfig<any>): void
+    protected onFailed?(error: AjaxError<any>, config: AjaxConfig): void
 
     protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
@@ -139,4 +140,4 @@ declare class HttpService {
 type ServiceDecorator = <T extends typeof HttpService>(target: T) => T
 
 declare function extender(url?: string): ServiceDecorator
-declare function extender(config?: AjaxConfig<any>): ServiceDecorator
+declare function extender(config?: AjaxConfig): ServiceDecorator

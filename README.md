@@ -98,7 +98,7 @@ type ResponseType<T> = {
 ### Extender decorator
 
 - @extender(url?: string)
-- @extender(config?: AjaxConfig<any>)
+- @extender(config?: AjaxConfig)
 
 ### example
 
@@ -109,12 +109,12 @@ import {AjaxAbort, AjaxConfig, AjaxError, extender, HttpService} from '@canlooks
     url: 'https://baidu.com'
 })
 export default class RootService extends HttpService {
-    beforeRequest(config: AjaxConfig<any>) {
+    beforeRequest(config: AjaxConfig) {
         // To modify config before each request
         return config
     }
 
-    beforeSuccess(res: any, config: AjaxConfig<any>) {
+    beforeSuccess(res: any, config: AjaxConfig) {
         // Judge your own logic
         if (res.result === 'failed') {
             // Make this request throw error
@@ -124,7 +124,7 @@ export default class RootService extends HttpService {
         return res.data
     }
 
-    beforeFail(error: AjaxError<any>, config: AjaxConfig<any>) {
+    beforeFail(error: AjaxError<any>, config: AjaxConfig) {
         // Judge your own logic
         if (error.message === 'ignore') {
             // Make this request success and change return value
@@ -134,11 +134,11 @@ export default class RootService extends HttpService {
         throw Error('Another error')
     }
 
-    onSuccess(data: any, config: AjaxConfig<any>) {
+    onSuccess(data: any, config: AjaxConfig) {
         // Do something when each request success.
     }
 
-    onFail(error: AjaxError<any>, config: AjaxConfig<any>) {
+    onFail(error: AjaxError<any>, config: AjaxConfig) {
         // Do something when each request fail.
     }
 }
@@ -224,14 +224,14 @@ Set your own request adapter in modularization.
 Type of adapter
 
 ```ts
-declare function registerAdapter(adapter: (config?: AjaxConfig<any>) => any): void
+declare function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 ```
 
 For example, replace `@canlooks/ajax` with jquery
 ```ts
 import $ from 'jquery'
 
-registerAdapter((config: AjaxConfig<any> = {}) => {
+registerAdapter((config: AjaxConfig = {}) => {
     return new Promise((success, error) => {
         let {headers, method, url, data} = config
         $.ajax({
@@ -247,7 +247,7 @@ For keeping `abort()`
 ```ts
 import $ from 'jquery'
 
-registerAdapter((config: AjaxConfig<any> = {}) => {
+registerAdapter((config: AjaxConfig = {}) => {
     let instance
     let promise = new Promise((success, error) => {
         let {headers, method, url, data} = config

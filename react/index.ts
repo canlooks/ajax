@@ -13,7 +13,7 @@ export function connect(connector: Record<string, typeof HttpService>) {
                 allAbortToken.set(this, abortToken)
                 Object.keys(connector).forEach(k => {
                     let service = this[k] = new connector[k]()
-                    service.defaultConfig.abortToken = abortToken
+                    service.mergedConfig.abortToken = abortToken
                 })
             }
 
@@ -33,7 +33,7 @@ export function useService<T extends HttpService>(service: { new(): T }): T {
     }, [])
     return useMemo(() => {
         let instance = new service()
-        instance.defaultConfig.abortToken = abortToken
+        instance.mergedConfig.abortToken = abortToken
         return instance
     }, [])
 }
