@@ -135,15 +135,14 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
             }
         }
     })
-    let abort = () => req.destroy()
-    config.abortToken?.on(abort)
+    config.abortToken?.on(abortFn)
     req.on('abort', () => {
-        errorHandler(AjaxAbort, 'Request was aborted', config.onAbort)
+        errorHandler(AjaxAbort, 'Request was aborted', config.onAbort, void 0, true)
     })
         .on('error', onError)
         .on('close', () => {
             config.onComplete?.(response, error)
-            config.abortToken?.off(abort)
+            config.abortToken?.off(abortFn)
         })
         .setTimeout(config.timeout || 60000, () => {
             req.destroy(errorHandler(AjaxTimeout, 'Request timeout', config.onTimeout))
@@ -165,10 +164,14 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         errorHandler(NetworkError, 'Network error', config.onError, e)
     }
 
-    function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function, originError?: Error): AjaxError<T> {
+    function abortFn() {
+        req.destroy()
+    }
+
+    function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function, originError?: Error, isAbort?: boolean): AjaxError<T> {
         error = new ErrorClass<T>(message, config, req, originError)
         callback?.(error)
-        config.silentAbort === false && reject(error)
+        ;(!isAbort || config.silentAbort === false) && reject(error)
         return error
     }
 }

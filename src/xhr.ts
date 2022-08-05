@@ -50,15 +50,14 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         }
         xhr.onerror = () => errorHandler(NetworkError, 'Network error', config.onError)
         xhr.ontimeout = () => errorHandler(AjaxTimeout, 'Request timeout', config.onTimeout)
-        xhr.onabort = () => errorHandler(AjaxAbort, 'Request was aborted', config.onAbort)
+        xhr.onabort = () => errorHandler(AjaxAbort, 'Request was aborted', config.onAbort, true)
         xhr.onprogress = config.onDownloadProgress || null
         xhr.upload.onprogress = config.onUploadProgress || null
-        let abort = () => xhr.abort()
         xhr.onloadend = () => {
-            config.abortToken?.off(abort)
+            config.abortToken?.off(abortFn)
             config.onComplete?.(response, error)
         }
-        config.abortToken?.on(abort)
+        config.abortToken?.on(abortFn)
         if (!data) {
             return xhr.send()
         }
@@ -93,10 +92,14 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
             }
         }
 
-        function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function) {
+        function abortFn() {
+            xhr.abort()
+        }
+
+        function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function, isAbort?: boolean) {
             error = new ErrorClass<T>(message, config, xhr)
             callback?.(error)
-            config.silentAbort === false && reject(error)
+            ;(!isAbort || config.silentAbort === false) && reject(error)
         }
     })
     ajaxInstance.instance = xhr
