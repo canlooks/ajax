@@ -108,7 +108,7 @@ declare const ajax: Ajax
 declare function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
 declare class HttpService {
-    defaultConfig: AjaxConfig
+    mergedConfig: AjaxConfig
 
     protected beforeRequest?(config: AjaxConfig): AjaxConfig | Promise<AjaxConfig>
 
@@ -116,9 +116,9 @@ declare class HttpService {
 
     protected onSuccess?(data: any, config: AjaxConfig): void
 
-    protected beforeFailed?(error: AjaxError<any>, config: AjaxConfig): any
+    protected beforeFail?(error: AjaxError<any>, config: AjaxConfig): any
 
-    protected onFailed?(error: AjaxError<any>, config: AjaxConfig): void
+    protected onFail?(error: AjaxError<any>, config: AjaxConfig): void
 
     protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
