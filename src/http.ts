@@ -137,7 +137,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     })
     config.abortToken?.on(abortFn)
     req.on('abort', () => {
-        errorHandler(AjaxAbort, 'Request was aborted', config.onAbort, void 0, true)
+        errorHandler(AjaxAbort, 'Request was aborted', config.onAbort, void 0)
     })
         .on('error', onError)
         .on('close', () => {
@@ -168,10 +168,10 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         req.destroy()
     }
 
-    function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function, originError?: Error, isAbort?: boolean): AjaxError<T> {
+    function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function, originError?: Error): AjaxError<T> {
         error = new ErrorClass<T>(message, config, req, originError)
         callback?.(error)
-        ;(!isAbort || config.silentAbort === false) && reject(error)
+        reject(error)
         return error
     }
 }

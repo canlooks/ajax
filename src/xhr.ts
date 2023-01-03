@@ -50,7 +50,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         }
         xhr.onerror = () => errorHandler(NetworkError, 'Network error', config.onError)
         xhr.ontimeout = () => errorHandler(AjaxTimeout, 'Request timeout', config.onTimeout)
-        xhr.onabort = () => errorHandler(AjaxAbort, 'Request was aborted', config.onAbort, true)
+        xhr.onabort = () => errorHandler(AjaxAbort, 'Request was aborted', config.onAbort)
         xhr.onprogress = config.onDownloadProgress || null
         xhr.upload.onprogress = config.onUploadProgress || null
         xhr.onloadend = () => {
@@ -96,10 +96,10 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
             xhr.abort()
         }
 
-        function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function, isAbort?: boolean) {
+        function errorHandler(ErrorClass: typeof AjaxError, message: string, callback?: Function) {
             error = new ErrorClass<T>(message, config, xhr)
             callback?.(error)
-            ;(!isAbort || config.silentAbort === false) && reject(error)
+            reject(error)
         }
     })
     ajaxInstance.instance = xhr

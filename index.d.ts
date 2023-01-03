@@ -20,7 +20,6 @@ export type AjaxConfig<T = any> = {
     data?: any
     timeout?: number
     abortToken?: AbortToken
-    silentAbort?: boolean
     auth?: {
         username: string
         password: string
