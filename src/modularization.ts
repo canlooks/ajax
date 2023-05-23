@@ -1,6 +1,6 @@
 import {ajax} from './adapter'
-import {AjaxConfig, Method, ResponseType} from '../index'
-import {AjaxError} from './error'
+import {AjaxConfig, DebugType, Method, ResponseType} from '../index'
+import {AjaxAbort, AjaxError, AjaxTimeout} from './error'
 
 let customAdapter = ajax
 
@@ -9,6 +9,26 @@ export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
 }
 
 export class HttpService {
+    debug?: boolean | DebugType = process.env.NODE_ENV !== 'production'
+
+    private get innerDebug(): DebugType {
+        if (this.debug === false) {
+            return {
+                error: false,
+                timeout: false,
+                abort: false
+            }
+        }
+        if (this.debug === true) {
+            return {
+                error: true,
+                timeout: true,
+                abort: true
+            }
+        }
+        return this.debug || {}
+    }
+
     mergedConfig: AjaxConfig = {}
 
     protected beforeRequest?(config: AjaxConfig): AjaxConfig | Promise<AjaxConfig>
@@ -20,6 +40,8 @@ export class HttpService {
     protected beforeFail?(error: AjaxError, config: AjaxConfig): any
 
     protected onFail?(error: AjaxError, config: AjaxConfig): void
+
+    protected onAbort?(error: AjaxAbort, config: AjaxConfig): void
 
     protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>> {
         return this.request('POST', url, data, config)
@@ -55,22 +77,31 @@ export class HttpService {
         return await this.intercept(() => customAdapter(mergedConfig), mergedConfig)
     }
 
-    private async intercept(action: (...a: any[]) => any, config: AjaxConfig): Promise<ResponseType<any>> {
-        let res
-        try {
-            res = await action()
-            if (this.beforeSuccess) {
-                res = await this.beforeSuccess(res, config)
+    private intercept(action: (...a: any[]) => any, config: AjaxConfig): Promise<ResponseType<any>> {
+        return new Promise(async (resolve, reject) => {
+            let res
+            try {
+                res = await action()
+                if (this.beforeSuccess) {
+                    res = await this.beforeSuccess(res, config)
+                }
+            } catch (e: any) {
+                if (this.beforeFail) {
+                    return await this.intercept(() => this.beforeFail!(e, config), config)
+                }
+                if (e instanceof AjaxAbort) {
+                    this.onAbort?.(e, config)
+                    return this.innerDebug.abort && reject(e)
+                }
+                this.onFail?.(e, config)
+                if (e instanceof AjaxTimeout && this.innerDebug.timeout) {
+                    return reject(e)
+                }
+                return this.innerDebug.error && reject(e)
             }
-        } catch (e: any) {
-            if (this.beforeFail) {
-                return await this.intercept(() => this.beforeFail!(e, config), config)
-            }
-            this.onFail?.(e, config)
-            throw e
-        }
-        this.onSuccess?.(res, config)
-        return res
+            this.onSuccess?.(res, config)
+            resolve(res)
+        })
     }
 }
 
@@ -78,10 +109,15 @@ function mergeConfig(...config: (AjaxConfig | undefined)[]) {
     let ret = config[0] || {}
     for (let i = 1, {length} = config; i < length; i++) {
         let next = config[i]
-        if (!next) continue
-        let url = combineUrl(ret.url, next.url)
-        let headers = {...ret.headers, ...next.headers}
-        ret = {...ret, ...next, url, headers}
+        if (!next) {
+            continue
+        }
+        ret = {
+            ...ret,
+            ...next,
+            url: combineUrl(ret.url, next.url),
+            headers: {...ret.headers, ...next.headers}
+        }
     }
     return ret
 }
@@ -93,7 +129,7 @@ function combineUrl(baseURL = '', relativeURL?: string) {
     if (/^([a-zA-Z]+:)?\/\//.test(relativeURL)) {
         return relativeURL
     }
-    return baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
+    return `${baseURL.replace(/\/+$/, '')}/${relativeURL.replace(/^\/+/, '')}`
 }
 
 export function extender(a: any = {}) {

@@ -106,7 +106,15 @@ declare const ajax: Ajax
 
 declare function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
+type DebugType = {
+    error?: boolean
+    timeout?: boolean
+    abort?: boolean
+}
+
 declare class HttpService {
+    debug?: boolean | DebugType
+
     mergedConfig: AjaxConfig
 
     protected beforeRequest?(config: AjaxConfig): AjaxConfig | Promise<AjaxConfig>
