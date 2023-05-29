@@ -9,7 +9,7 @@ export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
 }
 
 export class HttpService {
-    debug?: boolean | DebugType = process.env.NODE_ENV !== 'production'
+    debug: boolean | DebugType = process.env.NODE_ENV !== 'production'
 
     private get innerDebug(): DebugType {
         if (this.debug === false) {

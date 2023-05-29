@@ -1,4 +1,4 @@
-import {parseHeaders, querystring} from './utils'
+import {parseHeaders, stringifyQuery} from './utils'
 import {AjaxConfig, ResponseType} from '../index'
 import {AjaxAbort, AjaxError, AjaxTimeout, NetworkError} from './error'
 import {AjaxInstance} from './adapter'
@@ -11,7 +11,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     const xhr = new XMLHttpRequest()
     const ajaxInstance = new AjaxInstance<ResponseType<T>>((resolve, reject) => {
         if (config.params) {
-            url += '?' + querystring.stringify(config.params)
+            url += '?' + stringifyQuery(config.params)
         }
         auth ?
             xhr.open(config.method || 'get', url!, true, auth.username, auth.password) :

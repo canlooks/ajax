@@ -16,7 +16,7 @@ export type AjaxConfig<T = any> = {
     url?: string
     method?: Method
     headers?: Record<string, any>
-    params?: any
+    params?: Record<string | number, any>
     data?: any
     timeout?: number
     abortToken?: AbortToken

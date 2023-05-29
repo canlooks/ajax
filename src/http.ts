@@ -3,9 +3,9 @@ import https from 'https'
 import {FollowOptions, http as httpFollow, https as httpsFollow} from 'follow-redirects'
 import {AjaxConfig, ResponseType} from '../index'
 import {AjaxAbort, AjaxError, AjaxTimeout, NetworkError} from './error'
-import {querystring} from './utils'
 import zlib from 'zlib'
 import {AjaxInstance} from './adapter'
+import {stringifyQuery} from './utils'
 
 export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     let {url, auth, maxRedirects, responseType, maxContentLength, data} = config
@@ -13,29 +13,29 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         throw Error('"url" is required.')
     }
     if (config.params) {
-        url += '?' + querystring.stringify(config.params)
+        url += '?' + stringifyQuery(config.params)
     }
     let resolve: Function
     let reject: Function
-    let ajaxInstance = new AjaxInstance<T>((_resolve, _reject) => {
+    const ajaxInstance = new AjaxInstance<T>((_resolve, _reject) => {
         resolve = _resolve
         reject = _reject
     })
-    let parsedURL = new URL(url)
+    const parsedURL = new URL(url)
     if (auth) {
         parsedURL.username = auth.username || ''
         parsedURL.password = auth.password || ''
     }
     parsedURL.protocol ||= 'http:'
-    let isHttps = parsedURL.protocol === 'https:'
-    let lib: any = maxRedirects === 0 ?
+    const isHttps = parsedURL.protocol === 'https:'
+    const lib: any = maxRedirects === 0 ?
         isHttps ? https : http :
         isHttps ? httpsFollow : httpFollow
-    let headers = config.headers || {}
+    const headers = config.headers || {}
     let userAgentSpecified = false
     let contentLengthSpecified = false
     let contentTypeSpecified = false
-    for (let key in headers) if (headers.hasOwnProperty(key)) {
+    for (const key in headers) {
         userAgentSpecified ||= /user-?agent/i.test(key)
         contentLengthSpecified ||= /content-?length/i.test(key)
         contentTypeSpecified ||= /content-?type/i.test(key)
@@ -43,8 +43,8 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     if (!userAgentSpecified) {
         headers['User-Agent'] = '@canlooks/ajax-module'
     }
-    let dataIsObject = data && typeof data === 'object'
-    let dataIsStream = dataIsObject && typeof data.pipe === 'function'
+    const dataIsObject = data && typeof data === 'object'
+    const dataIsStream = dataIsObject && typeof data.pipe === 'function'
     if (data && !dataIsStream) {
         if (!Buffer.isBuffer(data)) {
             if (dataIsObject) {
@@ -64,7 +64,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     let responseData: T
     let response: ResponseType<T>
     let error: AjaxError<T> | undefined
-    let options: ClientRequestArgs & FollowOptions<any> = {
+    const options: ClientRequestArgs & FollowOptions<any> = {
         method: config.method?.toUpperCase(),
         headers,
         maxRedirects
@@ -72,7 +72,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     if (config.maxBodyLength) {
         options.maxBodyLength = config.maxBodyLength
     }
-    let req = lib.request(parsedURL, options, (res: any) => {
+    const req = lib.request(parsedURL, options, (res: any) => {
         if (req.aborted) return
         let statusCode = res.statusCode
         if (statusCode !== 204 && req.method !== 'HEAD' && config.decompress !== false) {
@@ -86,7 +86,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
             responseData = res as any
             return settle()
         }
-        let bufferArr: Uint8Array[] = []
+        const bufferArr: Uint8Array[] = []
         let totalLength = 0
         maxContentLength ??= 0
         res.on('data', (chunk: Uint8Array) => {

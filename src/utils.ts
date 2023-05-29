@@ -1,38 +1,26 @@
-export const querystring = {
-    parse(str: string) {
-        if (/^\?/.test(str)) {
-            str = str.slice(1)
-        }
-        str = decodeURI(str)
-        let obj: Record<string, string> = {}
-        str.split('&').forEach(v => {
-            if (!/=/.test(v)) return
-            let [_, key, value] = v.match(/^(.*)=(.*)$/) || []
-            obj[key] = value
-        })
-        return obj
-    },
-    stringify(obj: Record<string | number, any>) {
-        let ret = []
-        for (let key in obj) if (obj.hasOwnProperty(key)) {
-            ret.push(`${key}=${obj[key]}`)
-        }
-        return encodeURI(ret.join('&'))
+export function stringifyQuery(obj: Record<string | number, any>) {
+    if (typeof URLSearchParams === 'function') {
+        return new URLSearchParams(obj) + ''
     }
+    const ret = []
+    for (const key in obj) {
+        ret.push(`${key}=${obj[key]}`)
+    }
+    return encodeURIComponent(ret.join('&'))
 }
 
 export function parseHeaders(headers: string): Record<string, string | string[]> {
-    let ret: Record<string, string | string[]> = {}
+    const ret: Record<string, string | string[]> = {}
     if (!headers) {
         return ret
     }
     headers.split(/[\r\n]/).forEach(str => {
         if (!str) return
-        let matched = str.match(/(\S*):([\s\S]*)/)
+        const matched = str.match(/(\S*):([\s\S]*)/)
         if (!matched) return
-        let key = matched[1]
+        const key = matched[1]
         if (!key) return
-        let value = matched[2].trim()
+        const value = matched[2].trim()
         if (key in ret) {
             if (!Array.isArray(ret[key])) {
                 ret[key] = [ret[key] as string]
