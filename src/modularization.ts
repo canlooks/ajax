@@ -1,6 +1,6 @@
 import {ajax} from './adapter'
-import {AjaxConfig, DebugType, Method, ResponseType} from '../index'
-import {AjaxAbort, AjaxError, AjaxTimeout} from './error'
+import {AjaxConfig, Method, ResponseType} from '../index'
+import {AjaxAbort, AjaxError} from './error'
 
 let customAdapter = ajax
 
@@ -9,26 +9,6 @@ export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
 }
 
 export class HttpService {
-    debug: boolean | DebugType = process.env.NODE_ENV !== 'production'
-
-    private get innerDebug(): DebugType {
-        if (this.debug === false) {
-            return {
-                error: false,
-                timeout: false,
-                abort: false
-            }
-        }
-        if (this.debug === true) {
-            return {
-                error: true,
-                timeout: true,
-                abort: true
-            }
-        }
-        return this.debug || {}
-    }
-
     mergedConfig: AjaxConfig = {}
 
     protected beforeRequest?(config: AjaxConfig): AjaxConfig | Promise<AjaxConfig>
@@ -77,31 +57,24 @@ export class HttpService {
         return await this.intercept(() => customAdapter(mergedConfig), mergedConfig)
     }
 
-    private intercept(action: (...a: any[]) => any, config: AjaxConfig): Promise<ResponseType<any>> {
-        return new Promise(async (resolve, reject) => {
-            let res
-            try {
-                res = await action()
-                if (this.beforeSuccess) {
-                    res = await this.beforeSuccess(res, config)
-                }
-            } catch (e: any) {
-                if (this.beforeFail) {
-                    return await this.intercept(() => this.beforeFail!(e, config), config)
-                }
-                if (e instanceof AjaxAbort) {
-                    this.onAbort?.(e, config)
-                    return this.innerDebug.abort && reject(e)
-                }
-                this.onFail?.(e, config)
-                if (e instanceof AjaxTimeout && this.innerDebug.timeout) {
-                    return reject(e)
-                }
-                return this.innerDebug.error && reject(e)
+    private async intercept(action: (...a: any[]) => any, config: AjaxConfig): Promise<ResponseType<any>> {
+        let res
+        try {
+            res = await action()
+            if (this.beforeSuccess) {
+                res = await this.beforeSuccess(res, config)
             }
-            this.onSuccess?.(res, config)
-            resolve(res)
-        })
+        } catch (e: any) {
+            if (this.beforeFail) {
+                return await this.intercept(() => this.beforeFail!(e, config), config)
+            }
+            e instanceof AjaxAbort
+                ? this.onAbort?.(e, config)
+                : this.onFail?.(e, config)
+            throw e
+        }
+        this.onSuccess?.(res, config)
+        return res
     }
 }
 
