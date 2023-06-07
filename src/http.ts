@@ -144,7 +144,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
             config.onComplete?.(response, error)
             config.abortToken?.off(abortFn)
         })
-        .setTimeout(config.timeout || 60000, () => {
+        .setTimeout(config.timeout ?? 60000, () => {
             req.destroy(errorHandler(AjaxTimeout, 'Request timeout', config.onTimeout))
         })
     if (dataIsStream) {

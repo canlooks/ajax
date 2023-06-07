@@ -19,7 +19,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         if (responseType && responseType !== 'json') {
             xhr.responseType = responseType === 'stream' ? 'arraybuffer' : responseType
         }
-        xhr.timeout = config.timeout || 60000
+        xhr.timeout = config.timeout ?? 60000
         xhr.withCredentials = !!config.withCredentials
         const headers = config.headers || {}
         let contentTypeSpecified = false
