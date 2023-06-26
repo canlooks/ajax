@@ -14,12 +14,20 @@ export function parseHeaders(headers: string): Record<string, string | string[]>
     if (!headers) {
         return ret
     }
-    headers.split(/[\r\n]/).forEach(str => {
-        if (!str) return
+    const splitArr = headers.split(/[\r\n]/)
+    for (let i = 0, {length} = splitArr; i < length; i++) {
+        const str = splitArr[i]
+        if (!str) {
+            continue
+        }
         const matched = str.match(/(\S*):([\s\S]*)/)
-        if (!matched) return
+        if (!matched) {
+            continue
+        }
         const key = matched[1]
-        if (!key) return
+        if (!key) {
+            continue
+        }
         const value = matched[2].trim()
         if (key in ret) {
             if (!Array.isArray(ret[key])) {
@@ -29,6 +37,16 @@ export function parseHeaders(headers: string): Record<string, string | string[]>
         } else {
             ret[key] = value
         }
-    })
+    }
     return ret
+}
+
+export function combineUrl(baseURL = '', relativeURL?: string) {
+    if (!relativeURL) {
+        return baseURL
+    }
+    if (/^([a-zA-Z]+:)?\/\//.test(relativeURL)) {
+        return relativeURL
+    }
+    return `${baseURL.replace(/\/+$/, '')}/${relativeURL.replace(/^\/+/, '')}`
 }

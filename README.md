@@ -38,11 +38,11 @@ pending.then(res => {
 ### config
 
 ```ts
-type AjaxConfig<T> = {
+type AjaxConfig<T = any> = {
     url?: string
     method?: Method
     headers?: Record<string, any>
-    params?: any
+    params?: Record<string | number, any>
     data?: any
     timeout?: number
     abortToken?: AbortToken
@@ -52,7 +52,7 @@ type AjaxConfig<T> = {
     }
     responseType?: XMLHttpRequestResponseType | 'stream'
     withCredentials?: boolean
-    validateStatus?: ((status: number) => boolean) | null | false
+    validateStatus?: ((status: number) => boolean) | boolean
     onSuccess?(data: ResponseType<T>): void
     onTimeout?(error: AjaxTimeout): void
     onError?(error: AjaxError<T>): void
@@ -95,35 +95,32 @@ type ResponseType<T> = {
 
 ## Modularization
 
-### Extender decorator
+### Assign decorator
 
-- @extender(url?: string)
-- @extender(config?: AjaxConfig)
+- @assign(url?: string, interceptors?: Interceptors)
+- @assign(config?: AjaxConfig, interceptors?: Interceptors)
 
 ### example
 
 ```ts
-import {AjaxAbort, AjaxConfig, AjaxError, extender, HttpService} from '@canlooks/ajax'
+import {AjaxAbort, AjaxConfig, AjaxError, assign, Service} from '@canlooks/ajax'
 
-@extender({
+@assign({
     url: 'https://baidu.com'
-})
-export default class RootService extends HttpService {
+}, {
     beforeRequest(config: AjaxConfig) {
         // To modify config before each request
         return config
-    }
-
+    },
     beforeSuccess(res: any, config: AjaxConfig) {
         // Judge your own logic
         if (res.result === 'failed') {
             // Make this request throw error
-            throw Error('no no no')
+            throw Error('oh no')
         }
         // Change return value
         return res.data
-    }
-
+    },
     beforeFail(error: AjaxError<any>, config: AjaxConfig) {
         // Judge your own logic
         if (error.message === 'ignore') {
@@ -132,21 +129,22 @@ export default class RootService extends HttpService {
         }
         // Change error object
         throw Error('Another error')
-    }
-
+    },
     onSuccess(data: any, config: AjaxConfig) {
         // Do something when each request success.
-    }
-
+    },
     onFail(error: AjaxError<any>, config: AjaxConfig) {
         // Do something when each request fail.
     }
+})
+export default class IndexService extends Service {
+    
 }
 ```
 
 ```ts
-@extender('/search')
-export default class ExampleService extends RootService {
+@assign('/search')
+export default class ExampleService extends IndexService {
     myFn() {
         // Request method will hang on "this", such as "get", "post"...
         return this.post('/test', {

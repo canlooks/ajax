@@ -11,10 +11,12 @@ export function connect(connector: Record<string, typeof HttpService>) {
                 super(...a)
                 let abortToken = new AbortToken()
                 allAbortToken.set(this, abortToken)
-                Object.keys(connector).forEach(k => {
-                    let service = this[k] = new connector[k]()
+                const keys =  Object.keys(connector)
+                for (let i = 0, {length} = keys; i < length; i++) {
+                    const k = keys[i]
+                    const service = this[k] = new connector[k]()
                     service.mergedConfig.abortToken = abortToken
-                })
+                }
             }
 
             componentWillUnmount() {

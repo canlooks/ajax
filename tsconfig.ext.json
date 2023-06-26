@@ -2,7 +2,8 @@
   "compilerOptions": {
     "target": "es6",
     "module": "CommonJS",
-    "strict": true
+    "strict": true,
+    "declaration": true
   },
   "include": [
     "react/index.ts",

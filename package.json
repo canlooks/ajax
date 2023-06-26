@@ -1,6 +1,6 @@
 {
   "name": "@canlooks/ajax",
-  "version": "2.1.3",
+  "version": "3.0.0",
   "description": "A private tool",
   "author": "C.CanLiang <canlooks@gmail.com>",
   "license": "MIT",
@@ -16,7 +16,8 @@
     "./dist/http.js": "./dist/xhr.js"
   },
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.ext.json",
+    "clean": "shx rm -rf dist react/index.d.ts react/index.js vue/index.d.ts vue/index.js",
+    "build": "npm run clean && tsc && tsc -p tsconfig.ext.json",
     "test": "mocha -r ts-node/register test/test.ts"
   },
   "publishConfig": {
@@ -41,6 +42,7 @@
     "@types/react": "^18.0.26",
     "mocha": "^10.2.0",
     "react": "^18.2.0",
+    "shx": "^0.3.4",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.4"
   }

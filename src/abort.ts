@@ -1,17 +1,17 @@
-import {Cb} from '../index'
-
 export class AbortToken {
-    private callbacks = new Set<Cb>()
+    private callbacks = new Set<(...a: any[]) => any>()
 
-    on(callback: Cb) {
+    on(callback: (...a: any[]) => any) {
         this.callbacks.add(callback)
     }
 
-    off(callback: Cb) {
+    off(callback: (...a: any[]) => any) {
         this.callbacks.delete(callback)
     }
 
     abort() {
-        this.callbacks.forEach(fn => fn())
+        for (const fn of this.callbacks) {
+            fn()
+        }
     }
 }

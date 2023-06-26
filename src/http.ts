@@ -8,9 +8,9 @@ import {AjaxInstance} from './adapter'
 import {stringifyQuery} from './utils'
 
 export function ajax<T = any>(config: AjaxConfig<T> = {}) {
-    let {url, auth, maxRedirects, responseType, maxContentLength, data} = config
+    let {url, auth, maxRedirects, responseType, validateStatus, maxContentLength, data} = config
     if (!url) {
-        throw Error('"url" is required.')
+        throw Error('[@canlooks/ajax]: "url" was not specified')
     }
     if (config.params) {
         url += '?' + stringifyQuery(config.params)
@@ -110,10 +110,10 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
 
         function settle() {
             response = buildResponse()
-            let validateStatus = typeof config.validateStatus === 'undefined' ?
+            let validateStatusFn = typeof validateStatus === 'undefined' || validateStatus === true ?
                 (status: number) => status >= 200 && status < 300 :
-                config.validateStatus
-            if (!statusCode || !validateStatus || validateStatus(statusCode)) {
+                validateStatus
+            if (!statusCode || !validateStatusFn || validateStatusFn(statusCode)) {
                 config.onSuccess?.(response)
                 return resolve(response)
             }
@@ -136,9 +136,10 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         }
     })
     config.abortToken?.on(abortFn)
-    req.on('abort', () => {
-        errorHandler(AjaxAbort, 'Request was aborted', config.onAbort, void 0)
-    })
+    req
+        .on('abort', () => {
+            errorHandler(AjaxAbort, 'Request was aborted', config.onAbort, void 0)
+        })
         .on('error', onError)
         .on('close', () => {
             config.onComplete?.(response, error)
@@ -148,11 +149,13 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
             req.destroy(errorHandler(AjaxTimeout, 'Request timeout', config.onTimeout))
         })
     if (dataIsStream) {
-        data.on('error', (e: any) => {
-            data.destroy()
-            req.destroy()
-            errorHandler(NetworkError, 'Network error', config.onError, e)
-        }).pipe(req)
+        data
+            .on('error', (e: any) => {
+                data.destroy()
+                req.destroy()
+                errorHandler(NetworkError, 'Network error', config.onError, e)
+            })
+            .pipe(req)
     } else {
         req.end(data)
     }

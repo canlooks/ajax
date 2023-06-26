@@ -4,9 +4,9 @@ import {AjaxAbort, AjaxError, AjaxTimeout, NetworkError} from './error'
 import {AjaxInstance} from './adapter'
 
 export function ajax<T = any>(config: AjaxConfig<T> = {}) {
-    let {url, auth, responseType, data} = config
+    let {url, auth, responseType, validateStatus, data} = config
     if (!url) {
-        throw Error('"url" is required.')
+        throw Error('[@canlooks/ajax]: "url" was not specified')
     }
     const xhr = new XMLHttpRequest()
     const ajaxInstance = new AjaxInstance<ResponseType<T>>((resolve, reject) => {
@@ -27,22 +27,24 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
             contentTypeSpecified ||= /content-?type/i.test(key)
             xhr.setRequestHeader(key, headers[key])
         }
-        const validateStatus = typeof config.validateStatus === 'undefined' ?
-            (status: number) => status >= 200 && status < 300 :
-            config.validateStatus
+        const validateStatusFn = typeof validateStatus === 'undefined' || validateStatus === true
+            ? (status: number) => status >= 200 && status < 300
+            : validateStatus
         let responseData: T
         let response: ResponseType<T>
         let error: AjaxError<T> | undefined
         xhr.onload = () => {
             const {status, responseType} = xhr
-            if (!status && !/^file:/.test(xhr.responseURL)) return
+            if (!status && !/^file:/.test(xhr.responseURL)) {
+                return
+            }
             responseData = !responseType || responseType === 'text' ? xhr.responseText : xhr.response
             try {
                 responseData = JSON.parse(responseData as any)
             } catch (e) {
             }
             response = buildResponse()
-            if (!status || !validateStatus || validateStatus(status)) {
+            if (!status || !validateStatusFn || validateStatusFn(status)) {
                 config.onSuccess?.(response)
                 return resolve(response)
             }
@@ -51,23 +53,25 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         xhr.onerror = () => errorHandler(NetworkError, 'Network error', config.onError)
         xhr.ontimeout = () => errorHandler(AjaxTimeout, 'Request timeout', config.onTimeout)
         xhr.onabort = () => errorHandler(AjaxAbort, 'Request was aborted', config.onAbort)
-        xhr.onprogress = config.onDownloadProgress || null
-        xhr.upload.onprogress = config.onUploadProgress || null
+        if (config.onDownloadProgress) {
+            xhr.onprogress = config.onDownloadProgress
+        }
+        if (config.onUploadProgress) {
+            xhr.upload.onprogress = config.onUploadProgress
+        }
         xhr.onloadend = () => {
             config.abortToken?.off(abortFn)
             config.onComplete?.(response, error)
         }
         config.abortToken?.on(abortFn)
-        if (!data) {
+        if (typeof data === 'undefined' || data === null) {
             return xhr.send()
         }
         const isFormData = data instanceof FormData
         const isArrayBuffer = responseType === 'arraybuffer' || responseType === 'stream'
-        !contentTypeSpecified && xhr.setRequestHeader(
+        !contentTypeSpecified && !isFormData && xhr.setRequestHeader(
             'Content-Type',
-            isFormData ? 'application/x-www-form-urlencoded'
-                : isArrayBuffer ? 'application/octet-stream'
-                    : 'application/json'
+            isArrayBuffer ? 'application/octet-stream' : 'application/json'
         )
         isFormData || isArrayBuffer
             ? xhr.send(data)
