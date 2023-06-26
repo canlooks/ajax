@@ -1,21 +1,23 @@
 import {useEffect, useMemo} from 'react'
+import {AjaxConfig, Interceptor} from '../index'
+
 // @ts-ignore
-import {AbortToken, HttpService} from '../dist'
+import {AbortToken, Service} from '../dist'
+
+// test only
+// import {AbortToken, Service} from '../src'
 
 const allAbortToken = new WeakMap<object, AbortToken>()
 
-export function connect(connector: Record<string, typeof HttpService>) {
+export function connect(connector: Record<string, typeof Service>) {
     return (target: any) => {
         return class extends target {
             constructor(...a: any[]) {
                 super(...a)
-                let abortToken = new AbortToken()
+                const abortToken = new AbortToken()
                 allAbortToken.set(this, abortToken)
-                const keys =  Object.keys(connector)
-                for (let i = 0, {length} = keys; i < length; i++) {
-                    const k = keys[i]
-                    const service = this[k] = new connector[k]()
-                    service.mergedConfig.abortToken = abortToken
+                for (const k in connector) {
+                    this[k] = new connector[k]({abortToken})
                 }
             }
 
@@ -28,14 +30,12 @@ export function connect(connector: Record<string, typeof HttpService>) {
     }
 }
 
-export function useService<T extends HttpService>(service: { new(): T }): T {
+export function useService<T extends Service>(service: { new(config?: AjaxConfig, interceptor?: Interceptor): T }): T {
     let abortToken = useMemo(() => new AbortToken(), [])
     useEffect(() => () => {
         abortToken.abort()
     }, [])
     return useMemo(() => {
-        let instance = new service()
-        instance.mergedConfig.abortToken = abortToken
-        return instance
+        return new service({abortToken})
     }, [])
 }

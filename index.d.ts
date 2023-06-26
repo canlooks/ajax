@@ -105,21 +105,23 @@ declare const ajax: Ajax
 declare function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
 declare class Service {
-    protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    constructor(config?: AjaxConfig, interceptor?: Interceptor)
 
-    protected put<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
-    protected patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected put<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
-    protected get<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
-    protected delete<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected get<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
 
-    protected head<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected delete<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
 
-    protected options<T = any>(url: string, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected head<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
 
-    protected request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<ResponseType<T>>
+    protected options<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
+
+    protected request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 }
 
 type SuccessInterceptor<T = void> = (result: any, config: AjaxConfig) => T
@@ -141,4 +143,5 @@ declare function assign(url?: string, interceptor?: Interceptor): AssignDecorato
 declare function assign(config?: AjaxConfig, interceptor?: Interceptor): AssignDecorator
 
 declare function assignConfig(...config: (AjaxConfig | undefined)[]): AjaxConfig
+
 declare function assignInterceptor(...interceptors: (Interceptor | Interceptor[] | undefined)[]): Interceptor[]
