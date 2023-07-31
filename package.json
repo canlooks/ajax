@@ -16,8 +16,8 @@
     "./dist/http.js": "./dist/xhr.js"
   },
   "scripts": {
-    "clean": "shx rm -rf dist react/index.d.ts react/index.js vue/index.d.ts vue/index.js",
-    "build": "npm run clean && tsc && tsc -p tsconfig.ext.json",
+    "clean": "shx rm -rf dist react/index.d.ts react/index.js",
+    "build": "npm run clean && tsc && tsc -p react/tsconfig.json",
     "test": "mocha -r ts-node/register test/test.ts"
   },
   "publishConfig": {
