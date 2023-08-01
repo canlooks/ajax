@@ -1,15 +1,11 @@
 import {useEffect, useMemo} from 'react'
-import {AjaxConfig, Interceptor} from '../index'
-
-// @ts-ignore
-import {AbortToken, Service} from '../dist'
-
-// test only
-// import {AbortToken, Service} from '../src'
+import {AbortToken, Service} from '../src'
+import {AjaxConfig} from '../index'
 
 const allAbortToken = new WeakMap<object, AbortToken>()
 
-export function connect(connector: Record<string, typeof Service>) {
+export function connect(connector: Record<string, typeof Service>): <T>(target: T, context: ClassDecoratorContext) => T
+export function connect(connector: Record<string, typeof Service>): any {
     return (target: any) => {
         return class extends target {
             constructor(...a: any[]) {
@@ -30,7 +26,7 @@ export function connect(connector: Record<string, typeof Service>) {
     }
 }
 
-export function useService<T extends Service>(service: { new(config?: AjaxConfig, interceptor?: Interceptor): T }): T {
+export function useService<T>(service: { new(config?: AjaxConfig): T }): T {
     let abortToken = useMemo(() => new AbortToken(), [])
     useEffect(() => () => {
         abortToken.abort()

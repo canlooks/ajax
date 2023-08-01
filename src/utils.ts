@@ -1,3 +1,7 @@
+export function isDev()  {
+    return process.env.NODE_ENV === 'development'
+}
+
 export function stringifyQuery(obj: Record<string | number, any>) {
     if (typeof URLSearchParams === 'function') {
         return new URLSearchParams(obj) + ''

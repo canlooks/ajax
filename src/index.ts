@@ -6,4 +6,4 @@ export * from './error'
 
 export * from './modularization'
 
-export {assignConfig, assignInterceptor} from './modularizationMethods'
+export {assignConfig, assignInterceptor} from './modularizationUtils'

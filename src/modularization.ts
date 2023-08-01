@@ -1,6 +1,7 @@
 import {ajax} from './adapter'
 import {AjaxConfig, Interceptor, Method} from '../index'
-import {assignConfig, assignInterceptor, doBeforeRequest, doRequest} from './modularizationMethods'
+import {assignConfig, assignInterceptor, doBeforeRequest, doRequest} from './modularizationUtils'
+import {isDev} from './utils'
 
 let useAdapter = ajax
 
@@ -8,14 +9,11 @@ export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
     useAdapter = adapter
 }
 
-export const ASSIGNED_CONFIG = Symbol('assigned-config')
-export const ASSIGNED_INTERCEPTORS = Symbol('assigned-interceptors')
-
 export class Service {
-    protected [ASSIGNED_CONFIG]: AjaxConfig = {}
-    protected [ASSIGNED_INTERCEPTORS]: Interceptor[] = []
+    private readonly interceptors: Interceptor[]
 
-    constructor(config?: AjaxConfig, interceptor?: Interceptor) {
+    constructor(private config?: AjaxConfig, interceptors?: Interceptor | Interceptor[]) {
+        this.interceptors = assignInterceptor(interceptors)
     }
 
     protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>) {
@@ -47,23 +45,41 @@ export class Service {
     }
 
     protected async request<T>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<T> {
-        let assignedConfig = assignConfig(this[ASSIGNED_CONFIG], config, {method, url, data})
-        assignedConfig = await doBeforeRequest(this[ASSIGNED_INTERCEPTORS], assignedConfig)
-        return await doRequest(() => useAdapter(assignedConfig), this[ASSIGNED_INTERCEPTORS], assignedConfig)
+        let assignedConfig = assignConfig(this.config, config, {method, url, data})
+        assignedConfig = await doBeforeRequest(this.interceptors, assignedConfig)
+        return await doRequest(() => useAdapter(assignedConfig), this.interceptors, assignedConfig)
     }
 }
 
-export function assign(url: string, interceptors?: Interceptor): <T extends typeof Service>(target: T) => T
-export function assign(config: AjaxConfig, interceptors?: Interceptor): <T extends typeof Service>(target: T) => T
-export function assign(a: any = {}, interceptors?: Interceptor): any {
-    const config = typeof a === 'object' ? a : {url: a}
+export function interceptor(interceptors: Interceptor | Interceptor[]): <T extends typeof Service>(target: T, context: ClassDecoratorContext) => T
+export function interceptor(interceptors: Interceptor | Interceptor[]): any {
     return (target: typeof Service) => {
-        return class AssignedService extends target {
-            constructor(lastConfig?: AjaxConfig, lastInterceptor?: Interceptor[]) {
-                super()
-                this[ASSIGNED_CONFIG] = assignConfig(this[ASSIGNED_CONFIG], config, lastConfig)
-                this[ASSIGNED_INTERCEPTORS] = assignInterceptor(this[ASSIGNED_INTERCEPTORS], interceptors, lastInterceptor)
+        const ret = class extends target {
+            constructor(config?: AjaxConfig, lastInterceptor?: Interceptor | Interceptor[]) {
+                super(config, assignInterceptor(interceptors, lastInterceptor))
             }
         }
+        isDev() && Object.defineProperty(ret, 'name', {
+            value: target.name + '_assignedInterceptor'
+        })
+        return ret
+    }
+}
+
+export function configure(url: string): <T extends typeof Service>(target: T, context: ClassDecoratorContext) => T
+export function configure(config: AjaxConfig): <T extends typeof Service>(target: T, context: ClassDecoratorContext) => T
+export function configure(a: any = {}): any {
+    const config = typeof a === 'object' ? a : {url: a}
+    return (target: typeof Service) => {
+        const ret = class extends target {
+            constructor(lastConfig?: AjaxConfig, interceptor?: Interceptor | Interceptor[]) {
+                super(assignConfig(config, lastConfig), interceptor)
+
+            }
+        }
+        isDev() && Object.defineProperty(ret, 'name', {
+            value: target.name + '_assignedConfig'
+        })
+        return ret
     }
 }

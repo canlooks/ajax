@@ -13,5 +13,6 @@ export class AbortToken {
         for (const fn of this.callbacks) {
             fn()
         }
+        this.callbacks.clear()
     }
 }

@@ -95,19 +95,21 @@ type ResponseType<T> = {
 
 ## Modularization
 
-### Assign decorator
+### Configure & Interceptor decorator
 
-- @assign(url?: string, interceptors?: Interceptors)
-- @assign(config?: AjaxConfig, interceptors?: Interceptors)
+- @configure(url?: string)
+- @configure(config?: AjaxConfig)
+- @interceptor(interceptors: Interceptor | Interceptor[])
 
 ### example
 
 ```ts
-import {AjaxAbort, AjaxConfig, AjaxError, assign, Service} from '@canlooks/ajax'
+import {AjaxAbort, AjaxConfig, AjaxError, configure, interceptor, Service} from '@canlooks/ajax'
 
-@assign({
+@configure({
     url: 'https://baidu.com'
-}, {
+})
+@interceptor({
     beforeRequest(config: AjaxConfig) {
         // To modify config before each request
         return config
@@ -138,12 +140,12 @@ import {AjaxAbort, AjaxConfig, AjaxError, assign, Service} from '@canlooks/ajax'
     }
 })
 export default class IndexService extends Service {
-    
+
 }
 ```
 
 ```ts
-@assign('/search')
+@configure('/search')
 export default class ExampleService extends IndexService {
     myFn() {
         // Request method will hang on "this", such as "get", "post"...
@@ -159,7 +161,6 @@ new ExampleService().myFn()
     .then(res => {})
     .catch(e => {})
 // The final request url is "https://baidu.com/search/test"
-// and data is "{a: 572}"
 ```
 
 ## Use with React
@@ -177,20 +178,17 @@ When `componentWillUnmount`, every connected services will abort automatically.
 ```tsx
 import {Component} from 'react'
 import {connect} from '@canlooks/ajax/react'
-// import {ExampleService, AnotherService} from 'somewhere'
+import {ExampleService} from 'somewhere'
 
 @connect({
-    myInjectedService: ExampleService,
-    AnotherService
+    myInjectedService: ExampleService
 })
 export default class Index extends Component {
-    // Declare properties if you use typescript
+    // Declaring properties if you use typescript
     readonly myInjectedService!: ExampleService
-    readonly AnotherService!: AnotherService
 
     someMethod = async () => {
-        let res = await this.myInjectedService.myFn()
-        let test = await this.AnotherService.anotherFn()
+        const res = await this.myInjectedService.myFn()
     }
 
     render() {
@@ -203,13 +201,13 @@ export default class Index extends Component {
 
 ```tsx
 import {useService} from '@canlooks/ajax/react'
-// import {ExampleService} from 'somewhere'
+import {ExampleService} from 'somewhere'
 
 export default function Index() {
     let exampleService = useService(ExampleService)
 
     const someMethod = async () => {
-        let res = await exampleService.myFn()
+        const res = await exampleService.myFn()
     }
     
     return <></>
@@ -247,7 +245,7 @@ import $ from 'jquery'
 
 registerAdapter((config: AjaxConfig = {}) => {
     let instance
-    let promise = new Promise((success, error) => {
+    const promise = new Promise((success, error) => {
         let {headers, method, url, data} = config
         instance = $.ajax({
             headers, method, url, data,

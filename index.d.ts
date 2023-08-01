@@ -105,7 +105,7 @@ declare const ajax: Ajax
 declare function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
 declare class Service {
-    constructor(config?: AjaxConfig, interceptor?: Interceptor)
+    constructor(config?: AjaxConfig, interceptor?: Interceptor | Interceptor[])
 
     protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
@@ -139,9 +139,7 @@ export type Interceptor = {
 
 type AssignDecorator = <T extends typeof Service>(target: T) => T
 
-declare function assign(url?: string, interceptor?: Interceptor): AssignDecorator
-declare function assign(config?: AjaxConfig, interceptor?: Interceptor): AssignDecorator
+declare function interceptor(interceptors: Interceptor | Interceptor[]): AssignDecorator
 
-declare function assignConfig(...config: (AjaxConfig | undefined)[]): AjaxConfig
-
-declare function assignInterceptor(...interceptors: (Interceptor | Interceptor[] | undefined)[]): Interceptor[]
+declare function configure(url: string): AssignDecorator
+declare function configure(config: AjaxConfig): AssignDecorator

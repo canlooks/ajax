@@ -22,11 +22,7 @@ export function assignConfig(...config: (AjaxConfig | undefined)[]) {
 export function assignInterceptor(...interceptors: (Interceptor | Interceptor[] | undefined)[]) {
     let result: Interceptor[] = toArr(interceptors[0])
     for (let i = 1, {length} = interceptors; i < length; i++) {
-        const next = interceptors[i]
-        if (!next) {
-            continue
-        }
-        result = Array.isArray(next) ? [...result, ...next] : [...result, next]
+        result = [...result, ...toArr(interceptors[i])]
     }
     return result
 
