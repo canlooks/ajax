@@ -51,7 +51,7 @@ export class Service {
     }
 }
 
-export function interceptor(interceptors: Interceptor | Interceptor[]): <T extends typeof Service>(target: T, context: ClassDecoratorContext) => T
+export function interceptor(interceptors: Interceptor | Interceptor[]): <T extends typeof Service>(target: T) => T
 export function interceptor(interceptors: Interceptor | Interceptor[]): any {
     return (target: typeof Service) => {
         const ret = class extends target {
@@ -66,8 +66,8 @@ export function interceptor(interceptors: Interceptor | Interceptor[]): any {
     }
 }
 
-export function configure(url: string): <T extends typeof Service>(target: T, context: ClassDecoratorContext) => T
-export function configure(config: AjaxConfig): <T extends typeof Service>(target: T, context: ClassDecoratorContext) => T
+export function configure(url: string): <T extends typeof Service>(target: T) => T
+export function configure(config: AjaxConfig): <T extends typeof Service>(target: T) => T
 export function configure(a: any = {}): any {
     const config = typeof a === 'object' ? a : {url: a}
     return (target: typeof Service) => {

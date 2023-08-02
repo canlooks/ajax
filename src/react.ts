@@ -4,7 +4,7 @@ import {AjaxConfig} from '../index'
 
 const allAbortToken = new WeakMap<object, AbortToken>()
 
-export function connect(connector: Record<string, typeof Service>): <T>(target: T, context: ClassDecoratorContext) => T
+export function connect(connector: Record<string, typeof Service>): <T>(target: T) => T
 export function connect(connector: Record<string, typeof Service>): any {
     return (target: any) => {
         return class extends target {

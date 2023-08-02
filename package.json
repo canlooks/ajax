@@ -1,6 +1,6 @@
 {
   "name": "@canlooks/ajax",
-  "version": "3.0.3",
+  "version": "3.1.0",
   "description": "A private tool",
   "author": "C.CanLiang <canlooks@gmail.com>",
   "license": "MIT",
@@ -11,20 +11,36 @@
     "react"
   ],
   "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./index.d.ts"
+    },
     "./react": {
       "import": "./react/index.js",
-      "require": "./react/index.cjs"
+      "require": "./react/index.cjs",
+      "types": "./react/index.d.ts"
+    },
+    "./dist/*/http.js": {
+      "browser": {
+        "import": "./dist/esm/xhr.js",
+        "require": "./dist/cjs/xhr.js"
+      },
+      "default": {
+        "import": "./dist/esm/http.js",
+        "require": "./dist/cjs/http.js"
+      }
     }
   },
-  "main": "dist/lib/index.js",
-  "module": "dist/es/index.js",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
   "types": "index.d.ts",
   "browser": {
-    "./dist/http.js": "./dist/xhr.js"
+    "./dist/cjs/http.js": "./dist/cjs/xhr.js",
+    "./dist/esm/http.js": "./dist/esm/xhr.js"
   },
   "scripts": {
-    "clean": "shx rm -rf dist react/index.d.ts react/index.js",
-    "build": "npm run clean && tsc -p tsconfig.es.json && tsc -p tsconfig.lib.json",
+    "build": "shx rm -rf dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
     "test": "mocha -r ts-node/register test/test.ts"
   },
   "publishConfig": {
