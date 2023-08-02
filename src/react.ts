@@ -1,6 +1,6 @@
 import {useEffect, useMemo} from 'react'
-import {AbortToken, Service} from '../src'
-import {AjaxConfig} from '../index'
+import {AbortToken} from './'
+import type {AjaxConfig, Service} from '../'
 
 const allAbortToken = new WeakMap<object, AbortToken>()
 
