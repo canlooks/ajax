@@ -65,6 +65,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
     let response: ResponseType<T>
     let error: AjaxError<T> | undefined
     const options: ClientRequestArgs & FollowOptions<any> = {
+
         method: config.method?.toUpperCase(),
         headers,
         maxRedirects
@@ -78,7 +79,7 @@ export function ajax<T = any>(config: AjaxConfig<T> = {}) {
         if (statusCode !== 204 && req.method !== 'HEAD' && config.decompress !== false) {
             let encoding = res.headers['content-encoding']
             if (encoding === 'gzip' || encoding === 'compress' || encoding === 'deflate') {
-                res = res.pipe(zlib.createUnzip()) as any
+                res = res.pipe(zlib.createUnzip())
                 delete res.headers['content-encoding']
             }
         }

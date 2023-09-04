@@ -21,6 +21,11 @@
       "require": "./react/index.cjs",
       "types": "./react/index.d.ts"
     },
+    "./vue": {
+      "import": "./vue/index.js",
+      "require": "./vue/index.cjs",
+      "types": "./vue/index.d.ts"
+    },
     "./dist/*/http.js": {
       "browser": {
         "import": "./dist/esm/xhr.js",
@@ -41,7 +46,7 @@
   },
   "scripts": {
     "build": "shx rm -rf dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
-    "test": "mocha -r ts-node/register test/test.ts"
+    "test": "ts-node test/test.ts"
   },
   "publishConfig": {
     "access": "public",
@@ -63,10 +68,10 @@
     "@types/follow-redirects": "^1.14.1",
     "@types/node": "^20.4.5",
     "@types/react": "^18.2.18",
-    "mocha": "^10.2.0",
     "react": "^18.2.0",
     "shx": "^0.3.4",
     "ts-node": "^10.9.1",
-    "typescript": "^5.1.6"
+    "typescript": "^5.1.6",
+    "vue": "^3.3.4"
   }
 }

@@ -1,0 +1,1 @@
+export function useService<T>(service: { new(): T }): T

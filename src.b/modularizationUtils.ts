@@ -1,22 +1,51 @@
-import {AjaxConfig, Interceptor} from '../index'
-import {combineUrl} from './utils'
+import CAjax, {AjaxConfig, Interceptor} from '../index'
+import {joinURL} from './utils'
 import {AjaxAbort} from './error'
 
-export function assignConfig(...config: (AjaxConfig | undefined)[]) {
-    let result = config[0] || {}
-    for (let i = 1, {length} = config; i < length; i++) {
-        const next = config[i]
-        if (!next) {
-            continue
-        }
-        result = {
-            ...result,
-            ...next,
-            url: combineUrl(result.url, next.url),
-            headers: {...result.headers, ...next.headers}
+/**
+ * 深度合并配置项
+ * @param target
+ * @param source
+ */
+export function mergeConfig<T extends {}, U>(target: T, source: U): T & U
+export function mergeConfig<T extends {}, U, V>(target: T, source: U, source2: V): T & U & V
+export function mergeConfig<T extends {}, U, V, W>(target: T, source: U, source2: V, source3: W): T & U & V & W
+export function mergeConfig(target: object, ...sources: any[]): any
+export function mergeConfig(target: any, ...sources: any[]) {
+    for (let i = 0, {length} = sources; i < length; i++) {
+        const source = sources[i]
+        if (source && typeof source === 'object' || typeof source === 'string') {
+            for (const k in source) {
+                const v = source[k]
+                if (k === 'url') {
+                    target[k] = joinURL(target[k], v)
+                } else {
+                    target[k] = v && typeof v === 'object' ? mergeConfig(target[k], v) : v
+                }
+            }
         }
     }
-    return result
+    return target
+}
+
+const prototype_registeredFns = new WeakMap<object, ((context: any) => void)[]>()
+
+export function registerDecorator(prototype: Object, callback: (context: any) => void) {
+    getMapValueByDefault(prototype_registeredFns, prototype, () => []).push(callback)
+}
+
+/**
+ * 获取Map的值并赋予默认值
+ * @param map
+ * @param key
+ * @param defaultValue
+ */
+export function getMapValueByDefault<K extends object, V>(map: WeakMap<K, V>, key: K, defaultValue: () => V): V {
+    let value = map.get(key)
+    if (typeof value === 'undefined') {
+        map.set(key, value = defaultValue())
+    }
+    return value
 }
 
 export function assignInterceptor(...interceptors: (Interceptor | Interceptor[] | undefined)[]) {

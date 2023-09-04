@@ -1,13 +1,11 @@
-type Cb = (...a: any[]) => any
-
 export class AbortToken {
-    private callbacks = new Set<Cb>()
+    private callbacks = new Set<(...a: any[]) => any>()
 
-    on(callback: Cb) {
+    on(callback: (...a: any[]) => any) {
         this.callbacks.add(callback)
     }
 
-    off(callback:Cb) {
+    off(callback: (...a: any[]) => any) {
         this.callbacks.delete(callback)
     }
 

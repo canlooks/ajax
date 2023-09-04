@@ -1,7 +1,7 @@
 import {ajax} from './adapter'
-import {AjaxConfig, Interceptor, Method} from '../index'
-import {assignConfig, assignInterceptor, doBeforeRequest, doRequest} from './modularizationUtils'
-import {isDev} from './utils'
+import CAjax, {AjaxConfig, Interceptor, Method} from '../index'
+import {assignConfig, assignInterceptor, doBeforeRequest, doRequest, registerDecorator} from './modularizationUtils'
+import {getMapValueByDefault, isDev} from './utils'
 
 let useAdapter = ajax
 
@@ -51,24 +51,24 @@ export class Service {
     }
 }
 
-export function interceptor(interceptors: Interceptor | Interceptor[]): <T extends typeof Service>(target: T) => T
-export function interceptor(interceptors: Interceptor | Interceptor[]): any {
-    return (target: typeof Service) => {
-        const ret = class extends target {
-            constructor(config?: AjaxConfig, lastInterceptor?: Interceptor | Interceptor[]) {
-                super(config, assignInterceptor(interceptors, lastInterceptor))
-            }
-        }
-        isDev() && Object.defineProperty(ret, 'name', {
-            value: target.name + '_assignedInterceptor'
-        })
-        return ret
-    }
-}
+// export function interceptor(interceptors: Interceptor | Interceptor[]): <T extends typeof Service>(target: T) => T
+// export function interceptor(interceptors: Interceptor | Interceptor[]): any {
+//     return (target: typeof Service) => {
+//         const ret = class extends target {
+//             constructor(config?: AjaxConfig, lastInterceptor?: Interceptor | Interceptor[]) {
+//                 super(config, assignInterceptor(interceptors, lastInterceptor))
+//             }
+//         }
+//         isDev() && Object.defineProperty(ret, 'name', {
+//             value: target.name + '_assignedInterceptor'
+//         })
+//         return ret
+//     }
+// }
 
-export function configure(url: string): <T extends typeof Service>(target: T) => T
-export function configure(config: AjaxConfig): <T extends typeof Service>(target: T) => T
-export function configure(a: any = {}): any {
+export function Configure(url: string): <T extends typeof Service>(target: T) => T
+export function Configure(config: AjaxConfig): <T extends typeof Service>(target: T) => T
+export function Configure(a: any = {}): any {
     const config = typeof a === 'object' ? a : {url: a}
     return (target: typeof Service) => {
         const ret = class extends target {
@@ -82,4 +82,18 @@ export function configure(a: any = {}): any {
         })
         return ret
     }
+}
+
+const prototype_beforeRequest = new WeakMap<object, Interceptor['beforeRequest']>()
+
+export function BeforeRequest(target: Object, propertyKey: CAjax.Key): void
+export function BeforeRequest(): (target: Object, propertyKey: CAjax.Key) => void
+export function BeforeRequest(a?: any, b?: any) {
+    const fn = (prototype: Object, propertyKey: CAjax.Key) => {
+        registerDecorator(prototype, context => {
+            getMapValueByDefault(prototype_beforeRequest, prototype, () => []).push()
+        })
+        // getMapValueByDefault(prototype_beforeRequest, prototype, () => []).push()
+    }
+    return b ? fn(a, b) : fn
 }

@@ -1,8 +1,15 @@
+/**
+ * 是否为开发环境
+ */
 export function isDev()  {
     return process.env.NODE_ENV === 'development'
 }
 
-export function stringifyQuery(obj: Record<string | number, any>) {
+/**
+ * 将对象转成URL字符串参数
+ * @param obj
+ */
+export function stringifyQuery(obj: { [p: string | number]: any }) {
     if (typeof URLSearchParams === 'function') {
         return new URLSearchParams(obj) + ''
     }
@@ -13,8 +20,12 @@ export function stringifyQuery(obj: Record<string | number, any>) {
     return encodeURIComponent(ret.join('&'))
 }
 
-export function parseHeaders(headers: string): Record<string, string | string[]> {
-    const ret: Record<string, string | string[]> = {}
+/**
+ * 将字符串类型的header转成对象
+ * @param headers
+ */
+export function parseHeaders(headers: string): { [p: string]: string | string[] } {
+    const ret: { [p: string]: string | string[] } = {}
     if (!headers) {
         return ret
     }
@@ -45,12 +56,19 @@ export function parseHeaders(headers: string): Record<string, string | string[]>
     return ret
 }
 
-export function combineUrl(baseURL = '', relativeURL?: string) {
-    if (!relativeURL) {
-        return baseURL
+/**
+ * 拼接URL
+ * @param urls
+ */
+export function joinURL(...urls: (string | undefined)[]) {
+    const fn = (baseURL = '', relativeURL?: string) => {
+        if (!relativeURL) {
+            return baseURL
+        }
+        if (/^([a-zA-Z]+:)?\/\//.test(relativeURL)) {
+            return relativeURL
+        }
+        return baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
     }
-    if (/^([a-zA-Z]+:)?\/\//.test(relativeURL)) {
-        return relativeURL
-    }
-    return `${baseURL.replace(/\/+$/, '')}/${relativeURL.replace(/^\/+/, '')}`
+    return urls.reduce(fn, '') as string
 }
