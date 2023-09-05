@@ -1,19 +1,37 @@
-import {AjaxConfig} from '../index'
-import type {ClientRequest} from 'http'
+import {ErrorCause} from '../index'
+
+export const prefix = '[@canlooks/ajax] '
 
 export class AjaxError<T = any> extends Error {
-    constructor(
-        public message: string,
-        public config: AjaxConfig<T>,
-        public instance: XMLHttpRequest | ClientRequest,
-        public error?: Error
-    ) {
-        super('[@canlooks/ajax] ' + message)
-        const {constructor} = Object.getPrototypeOf(this)
-        const {value} = Object.getOwnPropertyDescriptor(constructor, 'defaultMessage') || {}
-        if (typeof value === 'string') {
-            this.message = value
+    constructor(message?: string, public cause?: ErrorCause<T>) {
+        const fn = (message = '', cause: ErrorCause = {}): [string, ErrorCause] => {
+            const {config} = cause
+            if (config) {
+                if (message) {
+                    message += `\r\n${'-'.repeat(50)}`
+                }
+                for (const k in config) {
+                    const v = config[k as keyof typeof config]
+                    const type = typeof v
+                    if (type === 'string' || type === 'number' || type === 'boolean') {
+                        const value = type === 'string' ? `"${v}"` : v
+                        message += `\r\n${k}: ${value}`
+                    }
+                }
+            }
+            return [message, cause]
         }
+        const [newMessage, newCause] = fn(message, cause)
+        // @ts-ignore
+        super(newMessage, {cause: newCause})
+        if (!message) {
+            const {constructor} = Object.getPrototypeOf(this)
+            const {value} = Object.getOwnPropertyDescriptor(constructor, 'defaultMessage') || {}
+            if (typeof value === 'string') {
+                this.message = `${value}\r\n${'-'.repeat(50)}\r\n${this.message}`
+            }
+        }
+        this.message = prefix + this.message
     }
 }
 

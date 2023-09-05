@@ -1,4 +1,4 @@
-import {Service} from '../'
+import {Service} from '..'
 
 export function connect(connector: Record<string, typeof Service>): <T>(target: T) => T
 

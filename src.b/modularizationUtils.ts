@@ -9,7 +9,7 @@ import {AjaxAbort} from './error'
  */
 export function mergeConfig<T extends {}, U>(target: T, source: U): T & U
 export function mergeConfig<T extends {}, U, V>(target: T, source: U, source2: V): T & U & V
-export function mergeConfig<T extends {}, U, V, W>(target: T, source: U, source2: V, source3: W): T & U & V & W
+export function mergeConfig<T extends {}, U, V, W>(target: T, source: U, source2: V, source3: W): T & U & V & Wsrc.b/modularizationUtils.ts
 export function mergeConfig(target: object, ...sources: any[]): any
 export function mergeConfig(target: any, ...sources: any[]) {
     for (let i = 0, {length} = sources; i < length; i++) {

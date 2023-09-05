@@ -62,7 +62,8 @@
     "email": "canlooks@gmail.com"
   },
   "dependencies": {
-    "follow-redirects": "^1.15.2"
+    "follow-redirects": "^1.15.2",
+    "tslib": "^2.6.2"
   },
   "devDependencies": {
     "@types/follow-redirects": "^1.14.1",

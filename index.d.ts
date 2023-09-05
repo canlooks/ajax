@@ -3,6 +3,7 @@ declare namespace CAjax {
     type Fn = (...args: any[]) => any
 
     /**
+     * -------------------------------------------------------------------------
      * 配置项
      */
 
@@ -23,8 +24,8 @@ declare namespace CAjax {
     type AjaxConfig<T = any> = {
         url?: string
         method?: Method
-        headers?: { [p: string]: any }
-        params?: { [p: string | number]: any }
+        headers?: {[p: string]: any}
+        params?: {[p: string | number]: any}
         data?: any
         timeout?: number
         abortToken?: AbortToken
@@ -42,9 +43,10 @@ declare namespace CAjax {
         onAbort?(error: AjaxAbort): void
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
-    }
+    } & RequestInit
 
     /**
+     * -------------------------------------------------------------------------
      * 中断
      */
 
@@ -57,29 +59,34 @@ declare namespace CAjax {
     }
 
     /**
+     * -------------------------------------------------------------------------
      * 错误类
      */
 
+    type ErrorCause<T = any> = {[p: Key]: any} & {
+        config?: AjaxConfig<T>
+        instance?: XMLHttpRequest
+    }
+
     class AjaxError<T = any> extends Error {
         message: string
-        config: AjaxConfig<T>
-        instance?: any
-        error?: Error
+        cause?: ErrorCause<T>
     }
 
     class NetworkError<T = any> extends AjaxError<T> {
         type: 'network error'
     }
 
-    class AjaxAbort extends AjaxError {
+    class AjaxAbort<T = any> extends AjaxError<T> {
         type: 'abort'
     }
 
-    class AjaxTimeout extends AjaxError {
+    class AjaxTimeout<T = any> extends AjaxError<T> {
         type: 'timeout'
     }
 
     /**
+     * -------------------------------------------------------------------------
      * Ajax实例
      */
 
@@ -94,7 +101,7 @@ declare namespace CAjax {
         status: number
         statusText: string
         rawHeaders?: string
-        headers: { [p: string]: number | string | string[] }
+        headers: {[p: string]: number | string | string[]}
     }
 
     type AjaxReturn<T = any> = AjaxInstance<ResponseType<T>>
@@ -117,13 +124,14 @@ declare namespace CAjax {
     }
 
     /**
+     * -------------------------------------------------------------------------
      * 模块化
      */
 
     function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
     class Service {
-        constructor(config?: AjaxConfig, interceptor?: Interceptor | Interceptor[])
+        constructor(config?: AjaxConfig)
 
         protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
 
@@ -142,23 +150,24 @@ declare namespace CAjax {
         protected request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
     }
 
-    type SuccessInterceptor<T = void> = (result: any, config: AjaxConfig) => T
-
-    type FailInterceptor<T extends AjaxError = AjaxError, R = void> = (error: T, config: AjaxConfig) => R
-
-    type Interceptor = {
-        beforeRequest: (config: AjaxConfig) => AjaxConfig | Promise<AjaxConfig>
-        beforeSuccess: SuccessInterceptor<any>
-        beforeFail: FailInterceptor<AjaxError, any>
-        onSuccess: SuccessInterceptor
-        onFail: FailInterceptor
-        onAbort: FailInterceptor<AjaxAbort>
-    }
-
     type ConfigureDecorator = <T extends typeof Service>(target: T) => T
 
     function Configure(url: string): ConfigureDecorator
     function Configure(config: AjaxConfig): ConfigureDecorator
+
+    type InterceptorDecorator = (target: Object, propertyKey: Key) => void
+
+    const BeforeRequest: InterceptorDecorator & (() => InterceptorDecorator)
+
+    const BeforeSuccess: InterceptorDecorator & (() => InterceptorDecorator)
+
+    const BeforeFail: InterceptorDecorator & (() => InterceptorDecorator)
+
+    const OnSuccess: InterceptorDecorator & (() => InterceptorDecorator)
+
+    const OnFail: InterceptorDecorator & (() => InterceptorDecorator)
+
+    const OnAbort: InterceptorDecorator & (() => InterceptorDecorator)
 }
 
 export = CAjax

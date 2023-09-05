@@ -1,22 +1,15 @@
-import {AjaxConfig, ResponseType} from '../index'
+import {AjaxConfig, Method, ResponseType} from '../index'
 import {parseHeaders, stringifyQuery} from './util'
-import {AjaxAbort, AjaxError, AjaxTimeout, NetworkError} from './error'
+import {AjaxAbort, AjaxError, AjaxTimeout, NetworkError, prefix} from './error'
+import {AjaxInstance} from './ajaxInstance'
 
-export class AjaxInstance<T = any> extends Promise<T> {
-    instance!: XMLHttpRequest
-
-    abort() {
-        this.instance.abort()
-    }
-}
-
-export function ajax(config: AjaxConfig = {}) {
+export function ajax<T>(config: AjaxConfig<T> = {}) {
     let {
         url, params, auth, method, responseType, timeout, withCredentials, data, headers, abortToken, validateStatus,
         onSuccess, onError, onTimeout, onAbort, onComplete, onDownloadProgress, onUploadProgress,
     } = config
     if (!url) {
-        throw Error('[@canlooks/ajax] "url" was not specified')
+        throw Error(prefix + '"url" must be specified')
     }
 
     // 添加query参数
@@ -35,7 +28,6 @@ export function ajax(config: AjaxConfig = {}) {
 
     // 设置"responseType"
     if (responseType && responseType !== 'json') {
-        // "stream"类型在xhr中需转换为"arraybuffer"
         xhr.responseType = responseType
     }
 
@@ -69,7 +61,7 @@ export function ajax(config: AjaxConfig = {}) {
         // 完整响应返回结构
         let response: ResponseType
         // 错误
-        let error: AjaxError | undefined
+        let error: AjaxError<T> | undefined
 
         // 成功
         xhr.onload = () => {
@@ -140,11 +132,28 @@ export function ajax(config: AjaxConfig = {}) {
          * @param callback
          */
         function makeError(constructor: typeof AjaxError, callback?: (error: any) => void, message = '') {
-            error = new constructor(message, config, xhr)
+            error = new constructor(message, {config, instance: xhr})
             callback?.(error)
             reject(error)
         }
     })
     ajaxInstance.instance = xhr
     return ajaxInstance
+}
+
+ajax.get = aliasWithoutData('get')
+ajax.delete = aliasWithoutData('delete')
+ajax.head = aliasWithoutData('head')
+ajax.options = aliasWithoutData('options')
+
+function aliasWithoutData(method: Method) {
+    return <T = any>(url: string, config?: AjaxConfig<T>) => ajax<T>({...config, method, url})
+}
+
+ajax.post = aliasWithData('post')
+ajax.put = aliasWithData('put')
+ajax.patch = aliasWithData('patch')
+
+function aliasWithData(method: Method) {
+    return <T = any>(url: string, data: any, config?: AjaxConfig<T>) => ajax<T>({...config, method, url, data})
 }
