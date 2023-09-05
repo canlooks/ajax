@@ -1,5 +1,5 @@
 import {AjaxConfig, Key, Method} from '../index'
-import {ajax} from './xhr'
+import {ajax} from './core'
 import {doBeforeRequest, doRequest, mergeConfig, registerInterceptors} from './util'
 
 let useAdapter = ajax

@@ -1,7 +1,14 @@
 import {AjaxConfig, Method, ResponseType} from '../index'
 import {parseHeaders, stringifyQuery} from './util'
 import {AjaxAbort, AjaxError, AjaxTimeout, NetworkError, prefix} from './error'
-import {AjaxInstance} from './ajaxInstance'
+
+export class AjaxInstance<T = any> extends Promise<T> {
+    instance!: XMLHttpRequest | any
+
+    abort() {
+        this.instance.abort()
+    }
+}
 
 export function ajax<T>(config: AjaxConfig<T> = {}) {
     let {

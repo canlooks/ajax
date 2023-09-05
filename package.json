@@ -25,27 +25,13 @@
       "import": "./vue/index.js",
       "require": "./vue/index.cjs",
       "types": "./vue/index.d.ts"
-    },
-    "./dist/*/http.js": {
-      "browser": {
-        "import": "./dist/esm/xhr.js",
-        "require": "./dist/cjs/xhr.js"
-      },
-      "default": {
-        "import": "./dist/esm/http.js",
-        "require": "./dist/cjs/http.js"
-      }
     }
   },
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "index.d.ts",
-  "browser": {
-    "./dist/cjs/http.js": "./dist/cjs/xhr.js",
-    "./dist/esm/http.js": "./dist/esm/xhr.js"
-  },
   "scripts": {
-    "build": "shx rm -rf dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
+    "build": "shx rm -rf dist && tsc -p tsconfig.esm.json & tsc -p tsconfig.cjs.json",
     "test": "ts-node test/test.ts"
   },
   "publishConfig": {
@@ -62,12 +48,9 @@
     "email": "canlooks@gmail.com"
   },
   "dependencies": {
-    "follow-redirects": "^1.15.2",
     "tslib": "^2.6.2"
   },
   "devDependencies": {
-    "@types/follow-redirects": "^1.14.1",
-    "@types/node": "^20.4.5",
     "@types/react": "^18.2.18",
     "react": "^18.2.0",
     "shx": "^0.3.4",

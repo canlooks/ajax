@@ -1,5 +1,5 @@
 export * from './abort'
 
-export {ajax} from './xhr'
+export {ajax} from './core'
 
 export * from './modularization'
