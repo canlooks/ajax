@@ -1,11 +1,5 @@
-import {AjaxAbort, AjaxConfig, Key} from '../index'
-
-/**
- * 是否为开发环境
- */
-export function isDev() {
-    return process.env.NODE_ENV === 'development'
-}
+import {AjaxConfig} from '../index'
+import {AjaxAbort} from './error'
 
 /**
  * 将对象转成URL字符串参数

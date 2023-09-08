@@ -43,7 +43,7 @@ declare namespace CAjax {
         onAbort?(error: AjaxAbort): void
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
-    } & RequestInit
+    }
 
     /**
      * -------------------------------------------------------------------------

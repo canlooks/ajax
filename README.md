@@ -11,7 +11,7 @@
 ```ts
 import {ajax} from '@canlooks/ajax'
 
-let pending = ajax({
+const pending = ajax({
     method: 'get',
     url: 'https://baidu.com'
 })
@@ -95,25 +95,30 @@ type ResponseType<T> = {
 
 ## Modularization
 
-### Configure & Interceptor decorator
+### Configure & Interceptors decorator
 
-- @configure(url?: string)
-- @configure(config?: AjaxConfig)
-- @interceptor(interceptors: Interceptor | Interceptor[])
+- @Configure(url?: string)
+- @Configure(config?: AjaxConfig)
 
 ### example
 
 ```ts
-import {AjaxAbort, AjaxConfig, AjaxError, configure, interceptor, Service} from '@canlooks/ajax'
+import {AjaxAbort, AjaxConfig, AjaxError, BeforeFail, BeforeRequest, BeforeSuccess, Configure, OnAbort, OnFail, OnSuccess, Service} from '@canlooks/ajax'
 
-@configure({
-    url: 'https://baidu.com'
+@Configure({
+    url: 'https://baidu.com',
+    headers: {
+        'User-Agent': '@canlooks/ajax'
+    }
 })
-@interceptor({
+class IndexService extends Service {
+    @BeforeRequest
     beforeRequest(config: AjaxConfig) {
         // To modify config before each request
         return config
-    },
+    }
+
+    @BeforeSuccess
     beforeSuccess(res: any, config: AjaxConfig) {
         // Judge your own logic
         if (res.result === 'failed') {
@@ -122,7 +127,9 @@ import {AjaxAbort, AjaxConfig, AjaxError, configure, interceptor, Service} from 
         }
         // Change return value
         return res.data
-    },
+    }
+
+    @BeforeFail
     beforeFail(error: AjaxError<any>, config: AjaxConfig) {
         // Judge your own logic
         if (error.message === 'ignore') {
@@ -131,22 +138,28 @@ import {AjaxAbort, AjaxConfig, AjaxError, configure, interceptor, Service} from 
         }
         // Change error object
         throw Error('Another error')
-    },
+    }
+
+    @OnSuccess
     onSuccess(data: any, config: AjaxConfig) {
         // Do something when each request success.
-    },
+    }
+
+    @OnFail
     onFail(error: AjaxError<any>, config: AjaxConfig) {
         // Do something when each request fail.
     }
-})
-export default class IndexService extends Service {
 
+    @OnAbort
+    onAbort(error: AjaxAbort<any>, config: AjaxConfig) {
+        // Do something when each request fail.
+    }
 }
 ```
 
 ```ts
-@configure('/search')
-export default class ExampleService extends IndexService {
+@Configure('/search')
+class ExampleService extends IndexService {
     myFn() {
         // Request method will hang on "this", such as "get", "post"...
         return this.post('/test', {
@@ -156,12 +169,7 @@ export default class ExampleService extends IndexService {
 }
 ```
 
-```ts
-new ExampleService().myFn()
-    .then(res => {})
-    .catch(e => {})
-// The final request url is "https://baidu.com/search/test"
-```
+`The final request url is "https://baidu.com/search/test"`
 
 ## Use with React
 
@@ -204,7 +212,7 @@ import {useService} from '@canlooks/ajax/react'
 import {ExampleService} from 'somewhere'
 
 export default function Index() {
-    let exampleService = useService(ExampleService)
+    const exampleService = useService(ExampleService)
 
     const someMethod = async () => {
         const res = await exampleService.myFn()
@@ -212,6 +220,21 @@ export default function Index() {
     
     return <></>
 }
+```
+
+## Use with Vue
+
+### useService(ServiceClass)
+
+```html
+<template>
+
+</template>
+<script lang="ts" setup>
+import {useService} from '@canlooks/ajax/vue'
+
+const exampleService = useService(ExampleService)
+</script>
 ```
 
 ## registerAdapter(adapter)
@@ -229,7 +252,7 @@ import $ from 'jquery'
 
 registerAdapter((config: AjaxConfig = {}) => {
     return new Promise((success, error) => {
-        let {headers, method, url, data} = config
+        const {headers, method, url, data} = config
         $.ajax({
             headers, method, url, data,
             success,
@@ -244,9 +267,9 @@ For keeping `abort()`
 import $ from 'jquery'
 
 registerAdapter((config: AjaxConfig = {}) => {
-    let instance
+    const instance
     const promise = new Promise((success, error) => {
-        let {headers, method, url, data} = config
+        const {headers, method, url, data} = config
         instance = $.ajax({
             headers, method, url, data,
             success,
