@@ -9,12 +9,10 @@ export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
 }
 
 export class Service {
-    config: AjaxConfig
+    config: AjaxConfig = {}
 
     constructor(config?: AjaxConfig) {
-        const prototype = Object.getPrototypeOf(this)
-        prototype[CONFIG] ||= {}
-        this.config = mergeConfig(prototype[CONFIG], config)
+        this.config = mergeConfig(this.config, config)
     }
 
     post<T = any>(url: string, data?: any, config?: AjaxConfig<T>) {
@@ -52,15 +50,18 @@ export class Service {
     }
 }
 
-const CONFIG = Symbol('config')
-
 export function Configure(url: string): <T extends typeof Service>(target: T) => T
 export function Configure(config: AjaxConfig): <T extends typeof Service>(target: T) => T
 export function Configure(a: any = {}): any {
     const config = typeof a === 'object' ? a : {url: a}
-    return ({prototype}: any) => {
-        prototype[CONFIG] ||= {}
-        mergeConfig(prototype[CONFIG], config)
+    return (target: any) => {
+        const ret = class noname extends target {
+            constructor(_config?: AjaxConfig) {
+                super(mergeConfig(config, _config))
+            }
+        }
+        Object.defineProperty(ret, 'name', {value: target.name})
+        return ret
     }
 }
 

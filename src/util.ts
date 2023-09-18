@@ -57,30 +57,22 @@ export function parseHeaders(headers: string): {[p: string]: string | string[]} 
  * @param target
  * @param source
  */
-export function mergeConfig<T extends {}, U>(target: T, source: U): T & U
-export function mergeConfig<T extends {}, U, V>(target: T, source: U, source2: V): T & U & V
-export function mergeConfig<T extends {}, U, V, W>(target: T, source: U, source2: V, source3: W): T & U & V & W
-export function mergeConfig(target: object, ...sources: any[]): any
-export function mergeConfig(target: any, ...sources: any[]) {
-    for (let i = 0, {length} = sources; i < length; i++) {
-        const source = sources[i]
-        if (source && typeof source === 'object' || typeof source === 'string') {
-            for (const k in source) {
-                const v = source[k]
-                if (k === 'url') {
-                    target[k] = joinURL(target[k], v)
-                    continue
+export function mergeConfig(...configs: (AjaxConfig | undefined)[]): AjaxConfig {
+    return configs.reduce((prev = {}, next?: AjaxConfig) => {
+        return next
+            ? {
+                ...prev,
+                ...next,
+                // url有专门的合并方法
+                url: joinURL(prev.url, next.url),
+                // headers需要深合并
+                headers: {
+                    ...prev.headers,
+                    ...next.headers
                 }
-                if (v && typeof v === 'object') {
-                    target[k] ||= {}
-                    mergeConfig(target[k], v)
-                    continue
-                }
-                target[k] = v
             }
-        }
-    }
-    return target
+            : prev
+    })!
 }
 
 /**
@@ -88,16 +80,16 @@ export function mergeConfig(target: any, ...sources: any[]) {
  * @param urls
  */
 export function joinURL(...urls: (string | undefined)[]) {
-    const fn = (baseURL = '', relativeURL?: string) => {
-        if (!relativeURL) {
-            return baseURL
+    return urls.reduce((prev = '', next?: string) => {
+        if (!next) {
+            return prev
         }
-        if (/^([a-zA-Z]+:)?\/\//.test(relativeURL)) {
-            return relativeURL
+        // 开头是协议（如http://），则抛弃之前的，重新开始
+        if (/^([a-zA-Z]+:)?\/\//.test(next)) {
+            return next
         }
-        return baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
-    }
-    return urls.reduce(fn, '') as string
+        return `${prev.replace(/\/+$/, '')}/${next.replace(/^\/+/, '')}`
+    })!
 }
 
 /**
@@ -135,7 +127,13 @@ export function registerInterceptors(prototype: any) {
 export async function doBeforeRequest(context: any, config: AjaxConfig) {
     const {beforeRequest = []} = Object.getPrototypeOf(context)[INTERCEPTORS] || {}
     for (let i = 0, {length} = beforeRequest; i < length; i++) {
-        config = await context[beforeRequest[i]]?.(config)
+        const interceptor = context[beforeRequest[i]]
+        if (interceptor) {
+            const newConfig = await interceptor(config)
+            if (typeof newConfig === 'object') {
+                config = newConfig
+            }
+        }
     }
     return config
 }
@@ -173,7 +171,13 @@ export async function doRequest(context: any, config: AjaxConfig, action: () => 
 async function doBeforeSuccess(context: any, config: AjaxConfig, result: any) {
     const {beforeSuccess = []} = Object.getPrototypeOf(context)[INTERCEPTORS] || {}
     for (let i = 0, {length} = beforeSuccess; i < length; i++) {
-        result = await context[beforeSuccess[i]]?.(result, config)
+        const interceptor = context[beforeSuccess[i]]
+        if (interceptor) {
+            const newResult = await interceptor(result, config)
+            if (typeof newResult !== 'undefined') {
+                result = newResult
+            }
+        }
     }
     return result
 }
@@ -183,10 +187,10 @@ async function doBeforeFail(context: any, config: AjaxConfig, error: any) {
     let hasError = true
     const {beforeFail = []} = Object.getPrototypeOf(context)[INTERCEPTORS] || {}
     for (let i = 0, {length} = beforeFail; i < length; i++) {
-        const fn = context[beforeFail[i]]
-        if (fn) {
+        const interceptor = context[beforeFail[i]]
+        if (interceptor) {
             try {
-                result = await fn(error, config)
+                result = await interceptor(error, config)
                 hasError = false
                 break
             } catch (e) {
@@ -195,7 +199,7 @@ async function doBeforeFail(context: any, config: AjaxConfig, error: any) {
         }
     }
     if (hasError) {
-        return error
+        throw error
     }
     return result
 }

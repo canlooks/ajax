@@ -131,6 +131,8 @@ declare namespace CAjax {
     function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
     class Service {
+        config: AjaxConfig
+
         constructor(config?: AjaxConfig)
 
         protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
