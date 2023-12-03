@@ -50,7 +50,7 @@ type AjaxConfig<T = any> = {
         username: string
         password: string
     }
-    responseType?: XMLHttpRequestResponseType | 'stream'
+    responseType?: XMLHttpRequestResponseType
     withCredentials?: boolean
     validateStatus?: ((status: number) => boolean) | boolean
     onSuccess?(data: ResponseType<T>): void

@@ -129,7 +129,7 @@ export async function doBeforeRequest(context: any, config: AjaxConfig) {
     for (let i = 0, {length} = beforeRequest; i < length; i++) {
         const interceptor = context[beforeRequest[i]]
         if (interceptor) {
-            const newConfig = await interceptor(config)
+            const newConfig = await interceptor.call(context, config)
             if (typeof newConfig === 'object') {
                 config = newConfig
             }
@@ -173,7 +173,7 @@ async function doBeforeSuccess(context: any, config: AjaxConfig, result: any) {
     for (let i = 0, {length} = beforeSuccess; i < length; i++) {
         const interceptor = context[beforeSuccess[i]]
         if (interceptor) {
-            const newResult = await interceptor(result, config)
+            const newResult = await interceptor.call(context, result, config)
             if (typeof newResult !== 'undefined') {
                 result = newResult
             }
@@ -190,7 +190,7 @@ async function doBeforeFail(context: any, config: AjaxConfig, error: any) {
         const interceptor = context[beforeFail[i]]
         if (interceptor) {
             try {
-                result = await interceptor(error, config)
+                result = await interceptor.call(context, error, config)
                 hasError = false
                 break
             } catch (e) {
@@ -208,11 +208,11 @@ function doOnFail(context: any, config: AjaxConfig, error: any) {
     const {onAbort = [], onFail = []} = Object.getPrototypeOf(context)[INTERCEPTORS] || {}
     if (error instanceof AjaxAbort) {
         for (let i = 0, {length} = onAbort; i < length; i++) {
-            context[onAbort[i]]?.(error, config)
+            context[onAbort[i]]?.call(context, error, config)
         }
     } else {
         for (let i = 0, {length} = onFail; i < length; i++) {
-            context[onFail[i]]?.(error, config)
+            context[onFail[i]]?.call(context, error, config)
         }
     }
 }
@@ -220,6 +220,6 @@ function doOnFail(context: any, config: AjaxConfig, error: any) {
 function doOnSuccess(context: any, config: AjaxConfig, result: any) {
     const {onSuccess = []} = Object.getPrototypeOf(context)[INTERCEPTORS] || {}
     for (let i = 0, {length} = onSuccess; i < length; i++) {
-        context[onSuccess[i]]?.(result, config)
+        context[onSuccess[i]]?.call(context, result, config)
     }
 }
