@@ -1,4 +1,4 @@
-import {ErrorCause} from '../index'
+import {ErrorCause} from '..'
 
 export const prefix = '[@canlooks/ajax] '
 
