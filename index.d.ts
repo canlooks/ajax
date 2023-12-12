@@ -7,17 +7,16 @@ declare namespace CAjax {
      * 配置项
      */
 
-    type Method =
-        'get' | 'GET' |
-        'delete' | 'DELETE' |
-        'head' | 'HEAD' |
-        'options' | 'OPTIONS' |
-        'post' | 'POST' |
-        'put' | 'PUT' |
-        'patch' | 'PATCH' |
-        'purge' | 'PURGE' |
-        'link' | 'LINK' |
-        'unlink' | 'UNLINK'
+    type Method = 'get' | 'GET'
+        | 'delete' | 'DELETE'
+        | 'head' | 'HEAD'
+        | 'options' | 'OPTIONS'
+        | 'post' | 'POST'
+        | 'put' | 'PUT'
+        | 'patch' | 'PATCH'
+        | 'purge' | 'PURGE'
+        | 'link' | 'LINK'
+        | 'unlink' | 'UNLINK'
 
     type ProgressCallback = (progressEvent: ProgressEvent) => void
 
@@ -51,9 +50,9 @@ declare namespace CAjax {
      */
 
     class AbortToken {
-        on(callback: CAjax.Fn): void
+        on(callback: Fn): void
 
-        off(callback: CAjax.Fn): void
+        off(callback: Fn): void
 
         abort(): void
     }
@@ -66,25 +65,24 @@ declare namespace CAjax {
     type AjaxErrorCause<T> = {
         config?: AjaxConfig<T>
         target?: any
-        propertyKey?: string | number | symbol
+        propertyKey?: Key
         error?: any
         [p: string]: any
     }
 
-    class AjaxError<T = any> extends Error {
-        message: string
-        cause?: AjaxErrorCause<T>
+    class AjaxError<T> extends Error {
+        type = 'Ajax Error'
     }
 
-    class NetworkError<T = any> extends AjaxError<T> {
+    class NetworkError<T> extends AjaxError<T> {
         type: 'network error'
     }
 
-    class AjaxAbort<T = any> extends AjaxError<T> {
+    class AjaxAbort<T> extends AjaxError<T> {
         type: 'abort'
     }
 
-    class AjaxTimeout<T = any> extends AjaxError<T> {
+    class AjaxTimeout<T> extends AjaxError<T> {
         type: 'timeout'
     }
 
@@ -93,11 +91,12 @@ declare namespace CAjax {
      * Ajax实例
      */
 
-    interface AjaxInstance<T = any> extends Promise<T> {
+    interface AjaxInstance<T> extends Promise<T> {
+        instance: XMLHttpRequest
         abort(): void
     }
 
-    type ResponseBody<T = any> = {
+    type ResponseBody<T> = {
         result: T
         config: AjaxConfig<T>
         instance: XMLHttpRequest
@@ -107,14 +106,14 @@ declare namespace CAjax {
         headers: {[p: string]: number | string | string[]}
     }
 
-    type AjaxReturn<T = any> = AjaxInstance<ResponseBody<T>>
+    type AjaxReturn<T> = AjaxInstance<ResponseBody<T>>
 
-    type AliasWithoutData = <T = any>(url: string, config?: AjaxConfig<T>) => AjaxReturn<T>
+    type AliasWithoutData = <T>(url: string, config?: AjaxConfig<T>) => AjaxReturn<T>
 
-    type AliasWithData = <T = any>(url: string, data: any, config?: AjaxConfig<T>) => AjaxReturn<T>
+    type AliasWithData = <T>(url: string, data: any, config?: AjaxConfig<T>) => AjaxReturn<T>
 
     const ajax: {
-        <T = any>(config?: AjaxConfig<T>): AjaxReturn<T>
+        <T>(config?: AjaxConfig<T>): AjaxReturn<T>
 
         get: AliasWithoutData
         delete: AliasWithoutData

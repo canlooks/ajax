@@ -3,7 +3,7 @@ import {parseHeaders, queryDataType, querySettleWay, stringifyQuery} from './uti
 import {AbortError, AjaxError, TimeoutError, NetworkError, prefix} from './error'
 
 export class AjaxInstance<T = any> extends Promise<T> {
-    instance!: XMLHttpRequest | any
+    instance!: XMLHttpRequest
 
     abort() {
         this.instance.abort()
@@ -80,26 +80,21 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
 
     // 创建Promise实例
     const ajaxInstance = new AjaxInstance((resolve, reject) => {
-        // 响应数据
-        let result: any
         // 完整响应返回结构
-        let response: ResponseBody | null = null
+        let response: ResponseBody<T> | null = null
         // 错误
         let error: AjaxError<T> | null = null
 
         // 成功
-        xhr.onload = () => {
+        xhr.addEventListener('load', () => {
             const {status} = xhr
             if (!status && !/^file:/.test(xhr.responseURL)) {
                 return
             }
-            result = !responseType || responseType === 'text' ? xhr.responseText : xhr.response
-            try {
-                result = JSON.parse(result as any)
-            } catch (e) {
-            }
             response = {
-                result,
+                result: !responseType || responseType === 'text'
+                    ? xhr.responseText
+                    : xhr.response,
                 config,
                 instance: xhr,
                 status: xhr.status,
@@ -121,29 +116,26 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
             } else {
                 makeError(AjaxError, onError, 'Request failed with status code ' + status)
             }
-        }
+        })
         // 错误
-        xhr.onerror = () => makeError(NetworkError, onError)
+        xhr.addEventListener('error', () => makeError(NetworkError, onError))
         // 超时
-        xhr.ontimeout = () => makeError(TimeoutError, onTimeout)
+        xhr.addEventListener('timeout', () => makeError(TimeoutError, onTimeout))
         // 中断
-        xhr.onabort = () => makeError(AbortError, onAbort)
+        xhr.addEventListener('abort', () => makeError(AbortError, onAbort))
         const abortFn = () => xhr.abort()
         abortToken?.on(abortFn)
-        xhr.onloadend = () => {
+
+        xhr.addEventListener('loadend', () => {
             // 请求结束后移除abortToken，并触发onComplete
             abortToken?.off(abortFn)
-            onComplete?.(response, error as any)
-        }
+            onComplete?.(response, error)
+        })
 
         // 下载进度
-        if (onDownloadProgress) {
-            xhr.onprogress = onDownloadProgress
-        }
+        onDownloadProgress && xhr.addEventListener('progress', onDownloadProgress)
         // 上传进度
-        if (onUploadProgress) {
-            xhr.upload.onprogress = onUploadProgress
-        }
+        onUploadProgress && xhr.upload.addEventListener('progress', onUploadProgress)
 
         /**
          * 生成错误实例
@@ -159,6 +151,7 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
             reject(error)
         }
     })
+
     ajaxInstance.instance = xhr
     return ajaxInstance
 }
