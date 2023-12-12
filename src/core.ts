@@ -1,6 +1,6 @@
-import {AjaxConfig, Method, ResponseType} from '../index'
-import {parseHeaders, stringifyQuery} from './util'
-import {AjaxAbort, AjaxError, AjaxTimeout, NetworkError, prefix} from './error'
+import {AjaxConfig, Method, ResponseBody} from '../index'
+import {parseHeaders, queryDataType, querySettleWay, stringifyQuery} from './util'
+import {AbortError, AjaxError, TimeoutError, NetworkError, prefix} from './error'
 
 export class AjaxInstance<T = any> extends Promise<T> {
     instance!: XMLHttpRequest | any
@@ -12,8 +12,24 @@ export class AjaxInstance<T = any> extends Promise<T> {
 
 export function ajax<T>(config: AjaxConfig<T> = {}) {
     let {
-        url, params, auth, method, responseType, timeout, withCredentials, data, headers, abortToken, validateStatus,
-        onSuccess, onError, onTimeout, onAbort, onComplete, onDownloadProgress, onUploadProgress,
+        url,
+        params,
+        auth,
+        method = 'GET',
+        responseType = 'json',
+        timeout = 60_000,
+        withCredentials,
+        data,
+        headers,
+        abortToken,
+        validateStatus = true,
+        onSuccess,
+        onError,
+        onTimeout,
+        onAbort,
+        onComplete,
+        onDownloadProgress,
+        onUploadProgress
     } = config
     if (!url) {
         throw Error(prefix + '"url" must be specified')
@@ -24,9 +40,6 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
         url += '?' + stringifyQuery(params)
     }
 
-    // 默认"GET"方法
-    method ||= 'GET'
-
     // 创建xhr实例
     const xhr = new XMLHttpRequest()
     auth
@@ -34,41 +47,45 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
         : xhr.open(method, url)
 
     // 设置"responseType"
-    if (responseType && responseType !== 'json') {
-        xhr.responseType = responseType
-    }
+    xhr.responseType = responseType
 
-    // 默认60秒超时
-    xhr.timeout = timeout ?? 60_000
     // 传递配置
+    xhr.timeout = timeout
     xhr.withCredentials = !!withCredentials
 
     // 判断数据类型并设置ContentType
-    const isFormData = data instanceof FormData
-    const isArrayBuffer = responseType === 'arraybuffer'
-    !isFormData && xhr.setRequestHeader(
-        'Content-Type',
-        isArrayBuffer ? 'application/octet-stream' : 'application/json'
-    )
+    const dataType = queryDataType(data)
+    const settleWay = querySettleWay(dataType)
+
+    if (settleWay === 'stream' || settleWay === 'json') {
+        xhr.setRequestHeader(
+            'Content-Type',
+            settleWay === 'json' ? 'application/json' : 'application/octet-stream'
+        )
+    }
+
     // 设置请求头
-    headers ||= {}
-    for (const key in headers) {
-        xhr.setRequestHeader(key, headers[key])
+    if (headers) {
+        for (const key in headers) {
+            xhr.setRequestHeader(key, headers[key])
+        }
     }
 
     // 发送数据
-    typeof data === 'undefined' || data === null ? xhr.send()
-        : isFormData || isArrayBuffer ? xhr.send(data)
-            : xhr.send(JSON.stringify(data))
+    typeof settleWay === 'undefined'
+        ? xhr.send()
+        : settleWay === 'json'
+            ? xhr.send(JSON.stringify(data))
+            : xhr.send(data)
 
     // 创建Promise实例
     const ajaxInstance = new AjaxInstance((resolve, reject) => {
         // 响应数据
-        let responseData: any
+        let result: any
         // 完整响应返回结构
-        let response: ResponseType
+        let response: ResponseBody | null = null
         // 错误
-        let error: AjaxError<T> | undefined
+        let error: AjaxError<T> | null = null
 
         // 成功
         xhr.onload = () => {
@@ -76,21 +93,17 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
             if (!status && !/^file:/.test(xhr.responseURL)) {
                 return
             }
-            responseData = !responseType || responseType === 'text' ? xhr.responseText : xhr.response
+            result = !responseType || responseType === 'text' ? xhr.responseText : xhr.response
             try {
-                responseData = JSON.parse(responseData as any)
+                result = JSON.parse(result as any)
             } catch (e) {
             }
             response = {
-                data: responseData,
+                result,
                 config,
                 instance: xhr,
-                get status() {
-                    return xhr.status
-                },
-                get statusText() {
-                    return xhr.statusText
-                },
+                status: xhr.status,
+                statusText: xhr.statusText,
                 get rawHeaders() {
                     return xhr.getAllResponseHeaders()
                 },
@@ -99,28 +112,28 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
                 }
             }
             // 状态码校验，默认200-300为成功
-            const validateStatusFn = typeof validateStatus === 'undefined' || validateStatus === true
+            const validateStatusFn = validateStatus === true
                 ? (status: number) => status >= 200 && status < 300
                 : validateStatus
             if (!status || !validateStatusFn || validateStatusFn(status)) {
                 onSuccess?.(response)
-                return resolve(response)
+                resolve(response)
+            } else {
+                makeError(AjaxError, onError, 'Request failed with status code ' + status)
             }
-            makeError(AjaxError, onError, 'Request failed with status code ' + status)
         }
         // 错误
         xhr.onerror = () => makeError(NetworkError, onError)
         // 超时
-        xhr.ontimeout = () => makeError(AjaxTimeout, onTimeout)
-
+        xhr.ontimeout = () => makeError(TimeoutError, onTimeout)
         // 中断
-        xhr.onabort = () => makeError(AjaxAbort, onAbort)
+        xhr.onabort = () => makeError(AbortError, onAbort)
         const abortFn = () => xhr.abort()
         abortToken?.on(abortFn)
         xhr.onloadend = () => {
             // 请求结束后移除abortToken，并触发onComplete
             abortToken?.off(abortFn)
-            onComplete?.(response, error)
+            onComplete?.(response, error as any)
         }
 
         // 下载进度
@@ -134,12 +147,14 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
 
         /**
          * 生成错误实例
-         * @param constructor
+         * @param ErrorClass
          * @param message
          * @param callback
          */
-        function makeError(constructor: typeof AjaxError, callback?: (error: any) => void, message = '') {
-            error = new constructor(message, {config, instance: xhr})
+        function makeError(ErrorClass: typeof AjaxError, callback?: (error: any) => void, message = '') {
+            error = new ErrorClass(message, {
+                cause: {config}
+            })
             callback?.(error)
             reject(error)
         }

@@ -1,5 +1,5 @@
 import {AjaxConfig} from '../index'
-import {AjaxAbort} from './error'
+import {AbortError} from './error'
 
 /**
  * 将对象转成URL字符串参数
@@ -14,6 +14,51 @@ export function stringifyQuery(obj: {[p: string | number]: any}) {
         ret.push(`${key}=${obj[key]}`)
     }
     return encodeURIComponent(ret.join('&'))
+}
+
+/**
+ * 判断data的类型
+ * @param data 
+ */
+export function queryDataType(data: any) {
+    const type = typeof data
+    if (type === 'undefined' || data === null) {
+        return 'undefined'
+    }
+    if (data instanceof Blob) {
+        return 'Blob'
+    }
+    if (data instanceof ArrayBuffer) {
+        return 'ArrayBuffer'
+    }
+    if (data instanceof FormData) {
+        return 'FormData'
+    }
+    if (data instanceof URLSearchParams) {
+        return 'URLSearchParams'
+    }
+    return type
+}
+
+/**
+ * 处理数据的方法
+ * @param dataType 
+ */
+export function querySettleWay(dataType: string) {
+    switch (dataType) {
+        case 'Blob':
+        case 'ArrayBuffer':
+        case 'FormData':
+            return 'stream'
+
+        case 'undefined':
+        case 'string':
+        case 'URLSearchParams':
+            return dataType
+
+        default:
+            return 'json'
+    }
 }
 
 /**
@@ -99,10 +144,11 @@ export function joinURL(...urls: (string | undefined)[]) {
  * @param defaultValue
  */
 export function getMapValueByDefault<K extends object, V>(map: WeakMap<K, V>, key: K, defaultValue: () => V): V {
-    let value = map.get(key)
-    if (typeof value === 'undefined') {
-        map.set(key, value = defaultValue())
+    if (map.has(key)) {
+        return map.get(key)!
     }
+    let value = defaultValue()
+    map.set(key, value)
     return value
 }
 
@@ -206,7 +252,7 @@ async function doBeforeFail(context: any, config: AjaxConfig, error: any) {
 
 function doOnFail(context: any, config: AjaxConfig, error: any) {
     const {onAbort = [], onFail = []} = Object.getPrototypeOf(context)[INTERCEPTORS] || {}
-    if (error instanceof AjaxAbort) {
+    if (error instanceof AbortError) {
         for (let i = 0, {length} = onAbort; i < length; i++) {
             context[onAbort[i]]?.call(context, error, config)
         }

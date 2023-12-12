@@ -2,6 +2,6 @@ export * from './abort'
 
 export {ajax} from './core'
 
-export {AjaxError, NetworkError, AjaxTimeout, AjaxAbort} from './error'
+export {AjaxError, NetworkError, TimeoutError, AbortError} from './error'
 
 export * from './modularization'

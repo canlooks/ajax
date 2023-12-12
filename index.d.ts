@@ -36,10 +36,10 @@ declare namespace CAjax {
         responseType?: XMLHttpRequestResponseType
         withCredentials?: boolean
         validateStatus?: ((status: number) => boolean) | boolean
-        onSuccess?(data: ResponseType<T>): void
+        onSuccess?(data: ResponseBody<T>): void
         onTimeout?(error: AjaxTimeout): void
         onError?(error: AjaxError<T>): void
-        onComplete?(data: ResponseType<T> | undefined, error: AjaxError<T> | undefined): void
+        onComplete?(data: ResponseBody<T> | null, error: AjaxError<T> | null): void
         onAbort?(error: AjaxAbort): void
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
@@ -63,14 +63,17 @@ declare namespace CAjax {
      * 错误类
      */
 
-    type ErrorCause<T = any> = {[p: Key]: any} & {
+    type AjaxErrorCause<T> = {
         config?: AjaxConfig<T>
-        instance?: XMLHttpRequest
+        target?: any
+        propertyKey?: string | number | symbol
+        error?: any
+        [p: string]: any
     }
 
     class AjaxError<T = any> extends Error {
         message: string
-        cause?: ErrorCause<T>
+        cause?: AjaxErrorCause<T>
     }
 
     class NetworkError<T = any> extends AjaxError<T> {
@@ -94,17 +97,17 @@ declare namespace CAjax {
         abort(): void
     }
 
-    type ResponseType<T = any> = {
-        data: T
+    type ResponseBody<T = any> = {
+        result: T
         config: AjaxConfig<T>
-        instance: any
+        instance: XMLHttpRequest
         status: number
         statusText: string
         rawHeaders?: string
         headers: {[p: string]: number | string | string[]}
     }
 
-    type AjaxReturn<T = any> = AjaxInstance<ResponseType<T>>
+    type AjaxReturn<T = any> = AjaxInstance<ResponseBody<T>>
 
     type AliasWithoutData = <T = any>(url: string, config?: AjaxConfig<T>) => AjaxReturn<T>
 
