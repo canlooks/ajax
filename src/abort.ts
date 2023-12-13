@@ -1,13 +1,13 @@
-type Cb = (...a: any[]) => any
+import {Fn} from '..'
 
 export class AbortToken {
-    private callbacks = new Set<Cb>()
+    private callbacks = new Set<Fn>()
 
-    on(callback: Cb) {
+    on(callback: Fn) {
         this.callbacks.add(callback)
     }
 
-    off(callback:Cb) {
+    off(callback:Fn) {
         this.callbacks.delete(callback)
     }
 

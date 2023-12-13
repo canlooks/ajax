@@ -1,120 +1,138 @@
-import {AjaxConfig, Key, Method} from '../index'
+import {AjaxConfig, Fn, Key, Method, RequestInterceptor, ResponseInterceptor} from '..'
 import {ajax} from './core'
-import {doBeforeRequest, doRequest, mergeConfig, registerInterceptors} from './util'
+import {mergeConfig} from './util'
 
-let useAdapter = ajax
+const globalVar = {
+    useAdapter: ajax
+}
 
 export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
-    useAdapter = adapter as any
+    if (typeof adapter !== 'function') {
+        throw Error('Invalid parameter at "registerAdapter()"')
+    }
+    globalVar.useAdapter = adapter as any
 }
 
 export class Service {
-    config: AjaxConfig = {}
+    static config: AjaxConfig = {}
+    static requestInterceptors: RequestInterceptor[] = []
+    static responseInterceptors: ResponseInterceptor[] = []
 
-    constructor(config?: AjaxConfig) {
-        this.config = mergeConfig(this.config, config)
-    }
-
-    post<T = any>(url: string, data?: any, config?: AjaxConfig<T>) {
+    static post(url: string, data?: any, config?: AjaxConfig) {
         return this.request('POST', url, data, config)
     }
 
-    put<T = any>(url: string, data?: any, config?: AjaxConfig<T>) {
+    static put(url: string, data?: any, config?: AjaxConfig) {
         return this.request('PUT', url, data, config)
     }
 
-    patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>) {
+    static patch(url: string, data?: any, config?: AjaxConfig) {
         return this.request('PATCH', url, data, config)
     }
 
-    get<T = any>(url: string, config?: AjaxConfig<T>) {
+    static get(url: string, config?: AjaxConfig) {
         return this.request('GET', url, void 0, config)
     }
 
-    protected delete<T = any>(url: string, config?: AjaxConfig<T>) {
+    static delete(url: string, config?: AjaxConfig) {
         return this.request('DELETE', url, void 0, config)
     }
 
-    protected head<T = any>(url: string, config?: AjaxConfig<T>) {
+    static head(url: string, config?: AjaxConfig) {
         return this.request('HEAD', url, void 0, config)
     }
 
-    protected options<T = any>(url: string, config?: AjaxConfig<T>) {
+    static options(url: string, config?: AjaxConfig) {
         return this.request('OPTIONS', url, void 0, config)
     }
 
-    protected async request<T>(method: Method, url: string, data?: any, config?: AjaxConfig<T>) {
-        let finalConfig: AjaxConfig<T> = mergeConfig(this.config, config, {method, url, data})
-        finalConfig = await doBeforeRequest(this, finalConfig)
-        return await doRequest(this, finalConfig, () => useAdapter(finalConfig))
-    }
-}
+    static async request(method: Method, url: string, data?: any, config?: AjaxConfig) {
+        let finalConfig = mergeConfig(this.config, config, {method, url, data})
+        finalConfig = await this.doBeforeRequest(finalConfig)
 
-export function Configure(url: string): <T extends typeof Service>(target: T) => T
-export function Configure(config: AjaxConfig): <T extends typeof Service>(target: T) => T
-export function Configure(a: any = {}): any {
-    const config = typeof a === 'object' ? a : {url: a}
-    return (target: any) => {
-        const ret = class noname extends target {
-            constructor(_config?: AjaxConfig) {
-                super(mergeConfig(config, _config))
+        let response = null
+        let error = null
+        let isFinalSuccess = false
+
+        try {
+            response = await globalVar.useAdapter(finalConfig)
+            isFinalSuccess = true
+        } catch (e) {
+            error = e
+            isFinalSuccess = false
+        }
+
+        const {responseInterceptors} = this
+        for (let i = 0, {length} = responseInterceptors; i < length; i++) {
+            try {
+                response = await responseInterceptors[i](response, error, finalConfig)
+                error = null
+                isFinalSuccess = true
+            } catch (e) {
+                response = null
+                error = e
+                isFinalSuccess = false
             }
         }
-        Object.defineProperty(ret, 'name', {value: target.name})
-        return ret
+
+        if (isFinalSuccess) {
+            // TODO 做到这里
+            return response
+        }
+        throw error
+    }
+
+    private static async doBeforeRequest(config: AjaxConfig) {
+        const {requestInterceptors} = this
+        for (let i = 0, {length} = requestInterceptors; i < length; i++) {
+            config = await requestInterceptors[i].call(this, config)
+        }
+        return config
     }
 }
 
-export function BeforeRequest(target: Object, propertyKey: Key): void
-export function BeforeRequest(): (target: Object, propertyKey: Key) => void
-export function BeforeRequest(a?: any, b?: any) {
-    const fn = (prototype: Object, propertyKey: Key) => {
-        registerInterceptors(prototype).beforeRequest.push(propertyKey)
+/**
+ * -----------------------------------------------------------------------
+ * 修饰器
+ */
+
+export function Configure(url: string): (target: typeof Service) => void
+export function Configure(config: AjaxConfig): (target: typeof Service) => void
+export function Configure(a: any = {}): any {
+    const config = typeof a === 'object' ? a : {url: a}
+    return (target: typeof Service) => {
+        target.config = mergeConfig(target.config, config)
     }
-    return b ? fn(a, b) : fn
 }
 
-export function BeforeSuccess(target: Object, propertyKey: Key): void
-export function BeforeSuccess(): (target: Object, propertyKey: Key) => void
-export function BeforeSuccess(a?: any, b?: any) {
-    const fn = (prototype: Object, propertyKey: Key) => {
-        registerInterceptors(prototype).beforeSuccess.push(propertyKey)
+export function BeforeRequest(filter: RequestInterceptor): (target: typeof Service) => void {
+    return (target: typeof Service) => {
+        target.requestInterceptors = [...target.requestInterceptors, filter]
     }
-    return b ? fn(a, b) : fn
 }
 
-export function BeforeFail(target: Object, propertyKey: Key): void
-export function BeforeFail(): (target: Object, propertyKey: Key) => void
-export function BeforeFail(a?: any, b?: any) {
-    const fn = (prototype: Object, propertyKey: Key) => {
-        registerInterceptors(prototype).beforeFail.push(propertyKey)
+export function BeforeResponse(filter: ResponseInterceptor): (target: typeof Service) => void {
+    return (target: typeof Service) => {
+        target.responseInterceptors = [...target.responseInterceptors, filter]
     }
-    return b ? fn(a, b) : fn
 }
 
-export function OnSuccess(target: Object, propertyKey: Key): void
-export function OnSuccess(): (target: Object, propertyKey: Key) => void
-export function OnSuccess(a?: any, b?: any) {
-    const fn = (prototype: Object, propertyKey: Key) => {
-        registerInterceptors(prototype).onSuccess.push(propertyKey)
-    }
-    return b ? fn(a, b) : fn
-}
+// onSuccess
 
-export function OnFail(target: Object, propertyKey: Key): void
-export function OnFail(): (target: Object, propertyKey: Key) => void
-export function OnFail(a?: any, b?: any) {
-    const fn = (prototype: Object, propertyKey: Key) => {
-        registerInterceptors(prototype).onFail.push(propertyKey)
-    }
-    return b ? fn(a, b) : fn
-}
+// onFailed (error, timeout, abort整合成onFailed)
 
-export function OnAbort(target: Object, propertyKey: Key): void
-export function OnAbort(): (target: Object, propertyKey: Key) => void
-export function OnAbort(a?: any, b?: any) {
-    const fn = (prototype: Object, propertyKey: Key) => {
-        registerInterceptors(prototype).onAbort.push(propertyKey)
+const target_onComplete = new WeakMap<typeof Service, Set<Fn>>()
+
+export function onComplete(target: typeof Service, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
+export function onComplete(): (target: typeof Service, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+export function onComplete(a?: any, b?: any, c?: any) {
+    const fn = (target: typeof Service, _: Key, {value}: TypedPropertyDescriptor<Fn>) => {
+        if (!value) {
+            return
+        }
+        target_onComplete.has(target)
+            ? target_onComplete.get(target)!.add(value)
+            : target_onComplete.set(target, new Set([value]))
     }
-    return b ? fn(a, b) : fn
+    return c ? fn(a, b, c) : fn
 }

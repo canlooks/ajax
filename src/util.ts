@@ -98,6 +98,11 @@ export function parseHeaders(headers: string): {[p: string]: string | string[]} 
 }
 
 /**
+ * -------------------------------------------------------------------------
+ * 模块化部分
+ */
+
+/**
  * 深度合并配置项
  * @param target
  * @param source
@@ -135,21 +140,6 @@ export function joinURL(...urls: (string | undefined)[]) {
         }
         return `${prev.replace(/\/+$/, '')}/${next.replace(/^\/+/, '')}`
     })!
-}
-
-/**
- * 获取Map的值并赋予默认值
- * @param map
- * @param key
- * @param defaultValue
- */
-export function getMapValueByDefault<K extends object, V>(map: WeakMap<K, V>, key: K, defaultValue: () => V): V {
-    if (map.has(key)) {
-        return map.get(key)!
-    }
-    let value = defaultValue()
-    map.set(key, value)
-    return value
 }
 
 /**

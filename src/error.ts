@@ -4,7 +4,7 @@ import {name} from '../package.json'
 export const prefix = `[${name}] `
 
 export class AjaxError<T> extends Error {
-    type = 'Ajax Error'
+    type = 'AjaxError'
 
     constructor(message?: string, options?: {
         cause?: AjaxErrorCause<T>
@@ -32,7 +32,9 @@ export class AjaxError<T> extends Error {
                             msg += `\r\n\t${key}: ${typeof value === 'string' ? `"${value}"` : value}`
                         }
                         if (obj instanceof FormData) {
-                            obj.forEach(addRow)
+                            for (const name in obj) {
+                                addRow(obj.get(name), name)
+                            }
                         } else {
                             for (const key in obj) {
                                 addRow(obj[key], key)
@@ -82,7 +84,7 @@ export class TimeoutError<T> extends AjaxError<T> {
 }
 
 export class AbortError<T> extends AjaxError<T> {
-    type = 'Aborted'
+    type = 'Abort'
 
     private static defaultMessage = 'Request was aborted'
 }

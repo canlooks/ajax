@@ -36,10 +36,10 @@ declare namespace CAjax {
         withCredentials?: boolean
         validateStatus?: ((status: number) => boolean) | boolean
         onSuccess?(data: ResponseBody<T>): void
-        onTimeout?(error: AjaxTimeout): void
-        onError?(error: AjaxError<T>): void
-        onComplete?(data: ResponseBody<T> | null, error: AjaxError<T> | null): void
-        onAbort?(error: AjaxAbort): void
+        onTimeout?(error: TimeoutError): void
+        onError?(error: AjaxError): void
+        onComplete?(data: ResponseBody<T> | null, error: AjaxError | null): void
+        onAbort?(error: AbortError): void
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
     }
@@ -70,21 +70,15 @@ declare namespace CAjax {
         [p: string]: any
     }
 
-    class AjaxError<T> extends Error {
-        type = 'Ajax Error'
+    class AjaxError extends Error {
+        type: string
     }
 
-    class NetworkError<T> extends AjaxError<T> {
-        type: 'network error'
-    }
+    class NetworkError extends AjaxError {}
 
-    class AjaxAbort<T> extends AjaxError<T> {
-        type: 'abort'
-    }
+    class AbortError extends AjaxError {}
 
-    class AjaxTimeout<T> extends AjaxError<T> {
-        type: 'timeout'
-    }
+    class TimeoutError extends AjaxError {}
 
     /**
      * -------------------------------------------------------------------------
@@ -96,7 +90,7 @@ declare namespace CAjax {
         abort(): void
     }
 
-    type ResponseBody<T> = {
+    type ResponseBody<T = any> = {
         result: T
         config: AjaxConfig<T>
         instance: XMLHttpRequest
@@ -132,46 +126,53 @@ declare namespace CAjax {
 
     function registerAdapter(adapter: (config?: AjaxConfig) => any): void
 
+    type RequestInterceptor = (config: AjaxConfig) => AjaxConfig | Promise<AjaxConfig>
+
+    type ResponseInterceptor = (response: ResponseBody | null, error: any, config: AjaxConfig) => any
+
     class Service {
-        config: AjaxConfig
+        static config: AjaxConfig
+        static requestInterceptors: RequestInterceptor[]
+        static responseInterceptors: ResponseInterceptor[]
 
-        constructor(config?: AjaxConfig)
+        static post<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
 
-        protected post<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
+        static put<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
 
-        protected put<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
+        static patch<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
 
-        protected patch<T = any>(url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
+        static get<T = any>(url: string, config?: AjaxConfig): Promise<T>
 
-        protected get<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
+        static delete<T = any>(url: string, config?: AjaxConfig): Promise<T>
 
-        protected delete<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
+        static head<T = any>(url: string, config?: AjaxConfig): Promise<T>
 
-        protected head<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
+        static options<T = any>(url: string, config?: AjaxConfig): Promise<T>
 
-        protected options<T = any>(url: string, config?: AjaxConfig<T>): Promise<T>
-
-        protected request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig<T>): Promise<T>
+        static request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig): Promise<T>
     }
 
-    type ConfigureDecorator = <T extends typeof Service>(target: T) => T
+    /**
+     * -------------------------------------------------------------------------
+     * 修饰器
+     */
 
-    function Configure(url: string): ConfigureDecorator
-    function Configure(config: AjaxConfig): ConfigureDecorator
+    type ServiceDecorator = (target: typeof Service) => void
 
-    type InterceptorDecorator = (target: Object, propertyKey: Key) => void
+    function Configure(url: string): ServiceDecorator
+    function Configure(config: AjaxConfig): ServiceDecorator
 
-    const BeforeRequest: InterceptorDecorator & (() => InterceptorDecorator)
+    /**
+     * 追加请求拦截器
+     * @param filter 
+     */
+    function BeforeRequest(filter: RequestInterceptor): ServiceDecorator
 
-    const BeforeSuccess: InterceptorDecorator & (() => InterceptorDecorator)
-
-    const BeforeFail: InterceptorDecorator & (() => InterceptorDecorator)
-
-    const OnSuccess: InterceptorDecorator & (() => InterceptorDecorator)
-
-    const OnFail: InterceptorDecorator & (() => InterceptorDecorator)
-
-    const OnAbort: InterceptorDecorator & (() => InterceptorDecorator)
+    /**
+     * 追加响应拦截器
+     * @param filter 
+     */
+    function BeforeResponse(filter: ResponseInterceptor): ServiceDecorator
 }
 
 export = CAjax
