@@ -41,8 +41,8 @@ pending.then(res => {
 type AjaxConfig<T = any> = {
     url?: string
     method?: Method
-    headers?: Record<string, any>
-    params?: Record<string | number, any>
+    headers?: {[p: string]: any}
+    params?: {[p: string | number]: any}
     data?: any
     timeout?: number
     abortToken?: AbortToken
@@ -53,17 +53,13 @@ type AjaxConfig<T = any> = {
     responseType?: XMLHttpRequestResponseType
     withCredentials?: boolean
     validateStatus?: ((status: number) => boolean) | boolean
-    onSuccess?(data: ResponseType<T>): void
-    onTimeout?(error: AjaxTimeout): void
-    onError?(error: AjaxError<T>): void
-    onComplete?(data: ResponseType<T> | undefined, error: AjaxError<T> | undefined): void
-    onAbort?(error: AjaxAbort): void
+    onSuccess?(data: ResponseBody<T>): void
+    onTimeout?(error: TimeoutError): void
+    onError?(error: AjaxError): void
+    onComplete?(data: ResponseBody<T> | null, error: AjaxError | null): void
+    onAbort?(error: AbortError): void
     onUploadProgress?: ProgressCallback
     onDownloadProgress?: ProgressCallback
-    maxRedirects?: number
-    maxBodyLength?: number
-    maxContentLength?: number
-    decompress?: boolean
 }
 
 type Method =
@@ -82,14 +78,14 @@ type Method =
 ### Response
 
 ```ts
-type ResponseType<T> = {
-    data: T
+type ResponseBody<T = any> = {
+    result: T
     config: AjaxConfig<T>
-    instance: XMLHttpRequest | ClientRequest
+    instance: XMLHttpRequest
     status: number
     statusText: string
     rawHeaders?: string
-    headers: Record<string, number | string | string[]>
+    headers: {[p: string]: number | string | string[]}
 }
 ```
 
@@ -99,11 +95,13 @@ type ResponseType<T> = {
 
 - @Configure(url?: string)
 - @Configure(config?: AjaxConfig)
+- @BeforeRequest((config: AjaxConfig) => AjaxConfig | Promise\<AjaxConfig>)
+- @BeforeResponse((response: any, error: any, config: AjaxConfig) => any)
 
 ### example
 
 ```ts
-import {AjaxAbort, AjaxConfig, AjaxError, BeforeFail, BeforeRequest, BeforeSuccess, Configure, OnAbort, OnFail, OnSuccess, Service} from '@canlooks/ajax'
+import {AjaxAbort, AjaxConfig, AjaxError, BeforeRequest, BeforeResponse, Configure, OnFailed, OnSuccess, Service} from '@canlooks/ajax'
 
 @Configure({
     url: 'https://baidu.com',
@@ -111,47 +109,27 @@ import {AjaxAbort, AjaxConfig, AjaxError, BeforeFail, BeforeRequest, BeforeSucce
         'User-Agent': '@canlooks/ajax'
     }
 })
+@BeforeRequest((config: AjaxConfig) => {
+    // To modify config before each request
+    return config
+})
+@BeforeResponse((previousResponse: any, previousError: any, config: AjaxConfig) => {
+    // Judge your own logic
+    if (previousResponse.code === 'ERR') {
+        // Make this request throw error
+        throw Error('oh no')
+    }
+    // Change return value
+    return res.data
+})
 class IndexService extends Service {
-    @BeforeRequest
-    beforeRequest(config: AjaxConfig) {
-        // To modify config before each request
-        return config
-    }
-
-    @BeforeSuccess
-    beforeSuccess(res: any, config: AjaxConfig) {
-        // Judge your own logic
-        if (res.result === 'failed') {
-            // Make this request throw error
-            throw Error('oh no')
-        }
-        // Change return value
-        return res.data
-    }
-
-    @BeforeFail
-    beforeFail(error: AjaxError<any>, config: AjaxConfig) {
-        // Judge your own logic
-        if (error.message === 'ignore') {
-            // Make this request success and change return value
-            return 'OK'
-        }
-        // Change error object
-        throw Error('Another error')
-    }
-
     @OnSuccess
     onSuccess(data: any, config: AjaxConfig) {
         // Do something when each request success.
     }
 
-    @OnFail
-    onFail(error: AjaxError<any>, config: AjaxConfig) {
-        // Do something when each request fail.
-    }
-
-    @OnAbort
-    onAbort(error: AjaxAbort<any>, config: AjaxConfig) {
+    @OnFailed
+    OnFailed(error: AjaxError<any>, config: AjaxConfig) {
         // Do something when each request fail.
     }
 }
@@ -162,14 +140,13 @@ class IndexService extends Service {
 class ExampleService extends IndexService {
     myFn() {
         // Request method will hang on "this", such as "get", "post"...
+        // The final request url is "https://baidu.com/search/test"
         return this.post('/test', {
             a: 572
         })
     }
 }
 ```
-
-`The final request url is "https://baidu.com/search/test"`
 
 ## Use with React
 
@@ -193,7 +170,7 @@ import {ExampleService} from 'somewhere'
 })
 export default class Index extends Component {
     // Declaring properties if you use typescript
-    readonly myInjectedService!: ExampleService
+    declare myInjectedService!: ExampleService
 
     someMethod = async () => {
         const res = await this.myInjectedService.myFn()
@@ -232,11 +209,13 @@ export default function Index() {
 </template>
 <script lang="ts" setup>
 import {useService} from '@canlooks/ajax/vue'
+import {ExampleService} from 'somewhere'
 
 const exampleService = useService(ExampleService)
 </script>
 ```
 
+---
 ## registerAdapter(adapter)
 
 Set your own request adapter in modularization.  

@@ -7,16 +7,17 @@ declare namespace CAjax {
      * 配置项
      */
 
-    type Method = 'get' | 'GET'
-        | 'delete' | 'DELETE'
-        | 'head' | 'HEAD'
-        | 'options' | 'OPTIONS'
-        | 'post' | 'POST'
-        | 'put' | 'PUT'
-        | 'patch' | 'PATCH'
-        | 'purge' | 'PURGE'
-        | 'link' | 'LINK'
-        | 'unlink' | 'UNLINK'
+    type Method =
+        'get' | 'GET' |
+        'delete' | 'DELETE' |
+        'head' | 'HEAD' |
+        'options' | 'OPTIONS' |
+        'post' | 'POST' |
+        'put' | 'PUT' |
+        'patch' | 'PATCH' |
+        'purge' | 'PURGE' |
+        'link' | 'LINK' |
+        'unlink' | 'UNLINK'
 
     type ProgressCallback = (progressEvent: ProgressEvent) => void
 
@@ -128,33 +129,33 @@ declare namespace CAjax {
 
     type RequestInterceptor = (config: AjaxConfig) => AjaxConfig | Promise<AjaxConfig>
 
-    type ResponseInterceptor = (response: ResponseBody | null, error: any, config: AjaxConfig) => any
+    type ResponseInterceptor = (response: any, error: any, config: AjaxConfig) => any
 
     class Service {
-        static config: AjaxConfig
-        static requestInterceptors: RequestInterceptor[]
-        static responseInterceptors: ResponseInterceptor[]
+        constructor(config?: AjaxConfig)
 
-        static post<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
+        config: AjaxConfig
 
-        static put<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
+        post<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
 
-        static patch<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
+        put<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
 
-        static get<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        patch<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
 
-        static delete<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        get<T = any>(url: string, config?: AjaxConfig): Promise<T>
 
-        static head<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        delete<T = any>(url: string, config?: AjaxConfig): Promise<T>
 
-        static options<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        head<T = any>(url: string, config?: AjaxConfig): Promise<T>
 
-        static request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig): Promise<T>
+        options<T = any>(url: string, config?: AjaxConfig): Promise<T>
+
+        request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig): Promise<T>
     }
 
     /**
      * -------------------------------------------------------------------------
-     * 修饰器
+     * 类修饰器
      */
 
     type ServiceDecorator = (target: typeof Service) => void
@@ -173,6 +174,19 @@ declare namespace CAjax {
      * @param filter 
      */
     function BeforeResponse(filter: ResponseInterceptor): ServiceDecorator
+
+    /**
+     * -------------------------------------------------------------------------
+     * 方法修饰器
+     */
+
+    type CallbackDecorator = (target: typeof Service, propertyKey: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+
+    const onSuccess: CallbackDecorator & (() => CallbackDecorator)
+
+    const onFailed: CallbackDecorator & (() => CallbackDecorator)
+
+    const onComplete: CallbackDecorator & (() => CallbackDecorator)
 }
 
 export = CAjax

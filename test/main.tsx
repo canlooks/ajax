@@ -1,77 +1,31 @@
 import React, {useState} from 'react'
 import {createRoot} from 'react-dom/client'
-import {name} from '../package.json'
-import {ajax} from '../src/core'
-import {AjaxError} from '../src/error'
+import {useService} from '../src/react'
+import {BeforeRequest, Configure, Service, ajax, onComplete} from '../src'
 
 const testToken = 'dc773c8e-bae7-48a9-96ed-731a05185ecb'
-
-class TestService {
-    testFn() {
-
-    }
-}
-
-const testService = new TestService()
+const pdfUrl = 'https://oss.queeny.cn/7e8613bd-69a4-42e1-8918-2f5edb75f4ad/%E5%A4%A9%E5%A4%A9%E5%BF%AB%E5%85%85%E7%9B%96%E7%AB%A0%E5%9B%BE%E7%BA%B8%EF%BC%88%E7%94%9F%E4%BA%A7%EF%BC%89.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ypejadz7g1ms0KBKl1zo%2F20231214%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20231214T060916Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=8d8b1f088603b475937fd3a30501cc41f07a59613fee498085c8281072c032f6'
 
 function App() {
-    const login = async () => {
-        const res = await ajax({
+    const [src, setSrc] = useState('')
+
+    const onClick = async () => {
+        const {result} = await ajax({
             url: 'https://gateway.queeny.cn/login',
             method: 'POST',
             data: {
-                account: '@广西海博出租汽车有限公司',
+                account: '@广西天天快充',
                 password: '12345678'
             }
         })
-        console.log(18, res)
-    }
-
-    const [file, setFile] = useState<File>()
-
-    const [progress, setProgress] = useState(0)
-
-    const clickHandler = async () => {
-        // const {result} = await ajax({
-        //     url: 'https://gateway.queeny.cn/oss',
-        //     method: 'POST',
-        //     params: {
-        //         method: 'presignedPutObject',
-        //         oid: '6ffb8efe-268a-4d18-94cf-06a22961c21a'
-        //     },
-        //     headers: {
-        //         'x-access-token': testToken
-        //     },
-        //     data: {
-        //         bucketName: 'test-bucket',
-        //         objectName: 'solution.pptx',
-        //         randomFileName: true
-        //     }
-        // }) as any
-        // console.log(49, result.payload.data.data.url)
-        const url = 'https://oss.queeny.cn/test-bucket/27d84c93-3524-48f6-8d62-d15ea541f0e8.pptx?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ypejadz7g1ms0KBKl1zo%2F20231212%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20231212T053019Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&X-Amz-Signature=bc7037763731876618ac97e51f0db28d1e8ddeaf76720ba01c0059a36fc87950'
-        const res = await ajax({
-            url,
-            method: 'POST',
-            // data: await file?.arrayBuffer()
-            data: file,
-            onUploadProgress({loaded, total}) {
-                console.log(59, loaded, total)
-                setProgress(loaded / total!)
-            }
-        })
-        console.log(60, res)
+        console.log(21, result)
     }
 
     return (
         <>
-            <h1>This is A test for {name}</h1>
-            <button onClick={login}>login</button>
-            <button onClick={clickHandler}>test upload file</button>
-            <input type="file" onChange={e => {
-                setFile(e.target.files?.[0])
-            }} />
-            <progress value={progress}/>
+            <h1>This is test page for @canlooks/ajax</h1>
+            <button onClick={onClick}>button</button>
+            <iframe src={src} />
         </>
     )
 }

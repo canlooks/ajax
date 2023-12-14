@@ -1,4 +1,4 @@
-import {AjaxConfig, Method, ResponseBody} from '../index'
+import {AjaxConfig, Method, ResponseBody} from '..'
 import {parseHeaders, queryDataType, querySettleWay, stringifyQuery} from './util'
 import {AbortError, AjaxError, TimeoutError, NetworkError, prefix} from './error'
 
@@ -39,7 +39,7 @@ export function ajax<T>(config: AjaxConfig<T> = {}) {
     if (params) {
         url += '?' + stringifyQuery(params)
     }
-
+    
     // 创建xhr实例
     const xhr = new XMLHttpRequest()
     auth

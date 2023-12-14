@@ -1,11 +1,11 @@
 import {useEffect, useMemo} from 'react'
-import {AbortToken} from '.'
-import type {AjaxConfig, Service} from '..'
+import {AbortToken} from './abort'
+import {AjaxConfig, Service} from '..'
 
 const allAbortToken = new WeakMap<object, AbortToken>()
 
-export function connect(connector: Record<string, typeof Service>): <T>(target: T) => T
-export function connect(connector: Record<string, typeof Service>): any {
+export function connect(connector: {[p: string]: typeof Service}): <T>(target: T) => T
+export function connect(connector: {[p: string]: typeof Service}): any {
     return (target: any) => {
         return class extends target {
             constructor(...a: any[]) {
@@ -26,12 +26,12 @@ export function connect(connector: Record<string, typeof Service>): any {
     }
 }
 
-export function useService<T>(service: { new(config?: AjaxConfig): T }): T {
+export function useService<T>(service: new (config?: AjaxConfig) => T): T {
     let abortToken = useMemo(() => new AbortToken(), [])
+
     useEffect(() => () => {
         abortToken.abort()
     }, [])
-    return useMemo(() => {
-        return new service({abortToken})
-    }, [])
+
+    return useMemo(() => new service({abortToken}), [])
 }

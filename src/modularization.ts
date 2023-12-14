@@ -18,51 +18,65 @@ export class Service {
     static requestInterceptors: RequestInterceptor[] = []
     static responseInterceptors: ResponseInterceptor[] = []
 
-    static post(url: string, data?: any, config?: AjaxConfig) {
+    config: AjaxConfig
+
+    constructor(config?: AjaxConfig) {
+        this.config = mergeConfig(
+            Object.getPrototypeOf(this).constructor.config,
+            config
+        )
+    }
+
+    post(url: string, data?: any, config?: AjaxConfig) {
         return this.request('POST', url, data, config)
     }
 
-    static put(url: string, data?: any, config?: AjaxConfig) {
+    put(url: string, data?: any, config?: AjaxConfig) {
         return this.request('PUT', url, data, config)
     }
 
-    static patch(url: string, data?: any, config?: AjaxConfig) {
+    patch(url: string, data?: any, config?: AjaxConfig) {
         return this.request('PATCH', url, data, config)
     }
 
-    static get(url: string, config?: AjaxConfig) {
+    get(url: string, config?: AjaxConfig) {
         return this.request('GET', url, void 0, config)
     }
 
-    static delete(url: string, config?: AjaxConfig) {
+    delete(url: string, config?: AjaxConfig) {
         return this.request('DELETE', url, void 0, config)
     }
 
-    static head(url: string, config?: AjaxConfig) {
+    head(url: string, config?: AjaxConfig) {
         return this.request('HEAD', url, void 0, config)
     }
 
-    static options(url: string, config?: AjaxConfig) {
+    options(url: string, config?: AjaxConfig) {
         return this.request('OPTIONS', url, void 0, config)
     }
 
-    static async request(method: Method, url: string, data?: any, config?: AjaxConfig) {
+    async request(method: Method, url: string, data?: any, config?: AjaxConfig) {
+        const constructor: typeof Service = Object.getPrototypeOf(this).constructor
+
         let finalConfig = mergeConfig(this.config, config, {method, url, data})
-        finalConfig = await this.doBeforeRequest(finalConfig)
+        const {requestInterceptors} = constructor
+        for (let i = 0, {length} = requestInterceptors; i < length; i++) {
+            finalConfig = await requestInterceptors[i](finalConfig)
+        }
 
         let response = null
         let error = null
-        let isFinalSuccess = false
+        let isFinalSuccess = true
 
         try {
-            response = await globalVar.useAdapter(finalConfig)
+            // response = await globalVar.useAdapter(finalConfig)
             isFinalSuccess = true
         } catch (e) {
             error = e
             isFinalSuccess = false
         }
 
-        const {responseInterceptors} = this
+        const {responseInterceptors} = constructor
         for (let i = 0, {length} = responseInterceptors; i < length; i++) {
             try {
                 response = await responseInterceptors[i](response, error, finalConfig)
@@ -75,19 +89,24 @@ export class Service {
             }
         }
 
+        const callCallback = (map: WeakMap<typeof Service, Set<Fn>>, ...param: any[]) => {
+            const set = map.get(constructor)
+            if (set) {
+                for (const cb of set) {
+                    cb.call(this, ...param, finalConfig)
+                }
+            }
+        }
+
+        isFinalSuccess
+            ? callCallback(target_onSuccess, response)
+            : callCallback(target_onFailed, error)
+        callCallback(target_onComplete, response, error)
+
         if (isFinalSuccess) {
-            // TODO 做到这里
             return response
         }
         throw error
-    }
-
-    private static async doBeforeRequest(config: AjaxConfig) {
-        const {requestInterceptors} = this
-        for (let i = 0, {length} = requestInterceptors; i < length; i++) {
-            config = await requestInterceptors[i].call(this, config)
-        }
-        return config
     }
 }
 
@@ -117,22 +136,38 @@ export function BeforeResponse(filter: ResponseInterceptor): (target: typeof Ser
     }
 }
 
-// onSuccess
+const target_onSuccess = new WeakMap<typeof Service, Set<Fn>>()
 
-// onFailed (error, timeout, abort整合成onFailed)
+export function onSuccess(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
+export function onSuccess(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+export function onSuccess(a?: any, b?: any, c?: any) {
+    return callbackDecorator(target_onSuccess, a, b, c)
+}
+
+const target_onFailed = new WeakMap<typeof Service, Set<Fn>>()
+
+export function onFailed(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
+export function onFailed(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+export function onFailed(a?: any, b?: any, c?: any) {
+    return callbackDecorator(target_onFailed, a, b, c)
+}
 
 const target_onComplete = new WeakMap<typeof Service, Set<Fn>>()
 
-export function onComplete(target: typeof Service, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
-export function onComplete(): (target: typeof Service, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+export function onComplete(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
+export function onComplete(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
 export function onComplete(a?: any, b?: any, c?: any) {
-    const fn = (target: typeof Service, _: Key, {value}: TypedPropertyDescriptor<Fn>) => {
+    return callbackDecorator(target_onComplete, a, b, c)
+}
+
+function callbackDecorator(map: WeakMap<typeof Service, Set<Fn>>, a?: any, b?: any, c?: any) {
+    const fn = ({constructor}: any, _: Key, {value}: TypedPropertyDescriptor<Fn>) => {
         if (!value) {
             return
         }
-        target_onComplete.has(target)
-            ? target_onComplete.get(target)!.add(value)
-            : target_onComplete.set(target, new Set([value]))
+        map.has(constructor)
+            ? map.get(constructor)!.add(value)
+            : map.set(constructor, new Set([value]))
     }
     return c ? fn(a, b, c) : fn
 }

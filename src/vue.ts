@@ -1,8 +1,8 @@
-import {AjaxConfig} from '../index'
+import {AjaxConfig} from '..'
 import {AbortToken} from './abort'
 import {onUnmounted} from 'vue'
 
-export function useService<T>(service: { new(config?: AjaxConfig): T }): T {
+export function useService<T>(service: new (config?: AjaxConfig) => T): T {
     const abortToken = new AbortToken()
     onUnmounted(() => abortToken.abort())
     return new service({abortToken})

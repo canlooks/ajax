@@ -1,12 +1,14 @@
 {
   "name": "@canlooks/ajax",
-  "version": "3.2.8",
+  "version": "3.3.0",
   "description": "A private tool",
   "author": "C.CanLiang <canlooks@gmail.com>",
   "license": "MIT",
   "keywords": [
     "ajax",
     "request",
+    "xhr",
+    "XMLHttpRequest",
     "modularization",
     "react",
     "vue"

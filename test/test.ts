@@ -23,7 +23,7 @@ class IndexService extends Service {
     return c
 })
 class SubService extends IndexService {
-    @onComplete
+    @onComplete()
     static myMethod() {
 
     }
@@ -36,6 +36,11 @@ class SubService extends IndexService {
 class TestService extends IndexService {
     @onComplete
     static myMethod2() {
+
+    }
+
+    @onComplete
+    static myMethod3() {
 
     }
 }
