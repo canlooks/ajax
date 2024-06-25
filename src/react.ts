@@ -4,6 +4,10 @@ import {AjaxConfig, Service} from '..'
 
 const allAbortToken = new WeakMap<object, AbortToken>()
 
+/**
+ * React类组件修饰器
+ * @param connector 
+ */
 export function connect(connector: {[p: string]: typeof Service}): <T>(target: T) => T
 export function connect(connector: {[p: string]: typeof Service}): any {
     return (target: any) => {

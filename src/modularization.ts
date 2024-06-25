@@ -3,14 +3,14 @@ import {ajax} from './core'
 import {mergeConfig} from './util'
 
 const globalVar = {
-    useAdapter: ajax
+    adapter: ajax
 }
 
 export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
     if (typeof adapter !== 'function') {
         throw Error('Invalid parameter at "registerAdapter()"')
     }
-    globalVar.useAdapter = adapter as any
+    globalVar.adapter = adapter as any
 }
 
 export class Service {
@@ -69,7 +69,7 @@ export class Service {
         let isFinalSuccess = true
 
         try {
-            // response = await globalVar.useAdapter(finalConfig)
+            response = await globalVar.adapter(finalConfig)
             isFinalSuccess = true
         } catch (e) {
             error = e
@@ -138,25 +138,25 @@ export function BeforeResponse(filter: ResponseInterceptor): (target: typeof Ser
 
 const target_onSuccess = new WeakMap<typeof Service, Set<Fn>>()
 
-export function onSuccess(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
-export function onSuccess(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
-export function onSuccess(a?: any, b?: any, c?: any) {
+export function OnSuccess(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
+export function OnSuccess(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+export function OnSuccess(a?: any, b?: any, c?: any) {
     return callbackDecorator(target_onSuccess, a, b, c)
 }
 
 const target_onFailed = new WeakMap<typeof Service, Set<Fn>>()
 
-export function onFailed(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
-export function onFailed(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
-export function onFailed(a?: any, b?: any, c?: any) {
+export function OnFailed(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
+export function OnFailed(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+export function OnFailed(a?: any, b?: any, c?: any) {
     return callbackDecorator(target_onFailed, a, b, c)
 }
 
 const target_onComplete = new WeakMap<typeof Service, Set<Fn>>()
 
-export function onComplete(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
-export function onComplete(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
-export function onComplete(a?: any, b?: any, c?: any) {
+export function OnComplete(target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>): void
+export function OnComplete(): (target: typeof Service.prototype, _: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
+export function OnComplete(a?: any, b?: any, c?: any) {
     return callbackDecorator(target_onComplete, a, b, c)
 }
 
