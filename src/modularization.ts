@@ -2,15 +2,13 @@ import {AjaxConfig, Fn, Key, Method, RequestInterceptor, ResponseInterceptor} fr
 import {ajax} from './core'
 import {mergeConfig} from './util'
 
-const globalVar = {
-    adapter: ajax
-}
+let usingAdapter = ajax
 
 export function registerAdapter(adapter: (config?: AjaxConfig) => any) {
     if (typeof adapter !== 'function') {
         throw Error('Invalid parameter at "registerAdapter()"')
     }
-    globalVar.adapter = adapter as any
+    usingAdapter = adapter as any
 }
 
 export class Service {
@@ -69,7 +67,7 @@ export class Service {
         let isFinalSuccess = true
 
         try {
-            response = await globalVar.adapter(finalConfig)
+            response = await usingAdapter(finalConfig)
             isFinalSuccess = true
         } catch (e) {
             error = e
@@ -89,7 +87,7 @@ export class Service {
             }
         }
 
-        const callCallback = (map: WeakMap<typeof Service, Set<Fn>>, ...param: any[]) => {
+        const implementCallback = (map: WeakMap<typeof Service, Set<Fn>>, ...param: any[]) => {
             const set = map.get(constructor)
             if (set) {
                 for (const cb of set) {
@@ -99,9 +97,9 @@ export class Service {
         }
 
         isFinalSuccess
-            ? callCallback(target_onSuccess, response)
-            : callCallback(target_onFailed, error)
-        callCallback(target_onComplete, response, error)
+            ? implementCallback(target_onSuccess, response)
+            : implementCallback(target_onFailed, error)
+        implementCallback(target_onComplete, response, error)
 
         if (isFinalSuccess) {
             return response
