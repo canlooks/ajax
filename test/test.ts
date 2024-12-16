@@ -1,55 +1,18 @@
-import {Configure, BeforeRequest, Service, onComplete} from '../src'
+import {ajax} from '../src'
+import fs from 'fs'
+import path from 'path'
 
-@Configure({
-    url: 'https://baidu.com',
-    headers: {
-        'test': 'abc'
+const image = fs.readFileSync(path.resolve('test/image.png'))
+
+ajax({
+    method: 'POST',
+    url: 'http://localhost:3000/upload',
+    body: new Blob([image]),
+    onUploadProgress(e) {
+        console.log(10, e)
     }
+}).then(res => {
+    console.log('success', res.result)
+}).catch(err => {
+    console.log('error', err)
 })
-@BeforeRequest(function aa(c) {
-    return c
-})
-class IndexService extends Service {
-
-}
-
-@Configure({
-    url: '/search',
-    headers: {
-        'test2': 'def'
-    }
-})
-@BeforeRequest(function bb(c) {
-    return c
-})
-class SubService extends IndexService {
-    @onComplete()
-    static myMethod() {
-
-    }
-}
-
-@Configure('/test')
-@BeforeRequest(function cc(c) {
-    return c
-})
-class TestService extends IndexService {
-    @onComplete
-    static myMethod2() {
-
-    }
-
-    @onComplete
-    static myMethod3() {
-
-    }
-}
-
-TestService.post('/a')
-SubService.post('/a')
-TestService.post('/a')
-SubService.post('/a')
-
-
-// console.log(TestService.requestInterceptors)
-// console.log(SubService.requestInterceptors)

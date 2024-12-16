@@ -1,174 +1,191 @@
-import {AjaxConfig, Method, ResponseBody} from '..'
-import {parseHeaders, queryDataType, querySettleWay, stringifyQuery} from './util'
-import {AbortError, AjaxError, TimeoutError, NetworkError, prefix} from './error'
+import {AjaxConfig, AjaxResponse, AjaxReturn, Method} from '..'
+import {AbortError, AjaxError, NetworkError, TimeoutError} from './error'
+import {findBodyFiles} from './util'
 
-export class AjaxInstance<T = any> extends Promise<T> {
-    instance!: XMLHttpRequest
-
-    abort() {
-        this.instance.abort()
-    }
-}
-
-export function ajax<T>(config: AjaxConfig<T> = {}) {
-    let {
+export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
+    const {
         url,
         params,
-        auth,
-        method = 'GET',
-        responseType = 'json',
-        timeout = 60_000,
-        withCredentials,
-        data,
-        headers,
-        abortToken,
-        validateStatus = true,
-        onSuccess,
-        onError,
-        onTimeout,
-        onAbort,
-        onComplete,
+        onUploadProgress,
         onDownloadProgress,
-        onUploadProgress
+        timeout = !onUploadProgress && !onDownloadProgress ? 60_000 : void 0,
+        responseType = onDownloadProgress ? void 0 : 'json',
+        ...init
     } = config
+
     if (!url) {
-        throw Error(prefix + '"url" must be specified')
+        throw new AjaxError(`"url" is required`, {cause: {config}})
     }
 
-    // 添加query参数
-    if (params) {
-        url += '?' + stringifyQuery(params)
-    }
-    
-    // 创建xhr实例
-    const xhr = new XMLHttpRequest()
-    auth
-        ? xhr.open(method, url, true, auth.username, auth.password)
-        : xhr.open(method, url)
+    /**
+     * ------------------------------------------------------------------
+     * 超时与中断
+     */
 
-    // 设置"responseType"
-    xhr.responseType = responseType
+    let abortController: AbortController | undefined
 
-    // 传递配置
-    xhr.timeout = timeout
-    xhr.withCredentials = !!withCredentials
-
-    // 判断数据类型并设置ContentType
-    const dataType = queryDataType(data)
-    const settleWay = querySettleWay(dataType)
-
-    if (settleWay === 'stream' || settleWay === 'json') {
-        xhr.setRequestHeader(
-            'Content-Type',
-            settleWay === 'json' ? 'application/json' : 'application/octet-stream'
-        )
+    let timeoutId
+    if (timeout) {
+        abortController ||= new AbortController()
+        timeoutId = setTimeout(() => {
+            abortController!.abort(
+                new TimeoutError(void 0, {cause: {config}})
+            )
+        }, timeout)
     }
 
-    // 设置请求头
-    if (headers) {
-        for (const key in headers) {
-            xhr.setRequestHeader(key, headers[key])
-        }
+    if (config.signal) {
+        abortController ||= new AbortController()
+        config.signal.addEventListener('abort', () => {
+            abortController!.abort(
+                new AbortError(void 0, {cause: {config}})
+            )
+        })
     }
 
-    // 发送数据
-    typeof settleWay === 'undefined'
-        ? xhr.send()
-        : settleWay === 'json'
-            ? xhr.send(JSON.stringify(data))
-            : xhr.send(data)
+    /**
+     * ------------------------------------------------------------------
+     * 请求
+     */
 
-    // 创建Promise实例
-    const ajaxInstance = new AjaxInstance((resolve, reject) => {
-        // 完整响应返回结构
-        let response: ResponseBody<T> | null = null
-        // 错误
-        let error: AjaxError<T> | null = null
+    let response: Response
+    try {
+        response = await fetch(url, {
+            ...init,
+            signal: abortController?.signal,
+        })
+    } catch (e) {
+        console.error(e)
+        throw e instanceof AjaxError ? e : new NetworkError(void 0, {cause: {config}})
+    }
+    if (!response.ok) {
+        throw new NetworkError(`request failed with status ${response.status}`, {cause: {config}})
+    }
 
-        // 成功
-        xhr.addEventListener('load', () => {
-            const {status} = xhr
-            if (!status && !/^file:/.test(xhr.responseURL)) {
-                return
-            }
-            response = {
-                result: !responseType || responseType === 'text'
-                    ? xhr.responseText
-                    : xhr.response,
-                config,
-                instance: xhr,
-                status: xhr.status,
-                statusText: xhr.statusText,
-                get rawHeaders() {
-                    return xhr.getAllResponseHeaders()
-                },
-                get headers() {
-                    return parseHeaders(xhr.getAllResponseHeaders())
+    let result: any
+
+    /**
+     * ------------------------------------------------------------------
+     * 进度
+     */
+
+    try {
+        if (onUploadProgress) {
+            const blob = findBodyFiles(init.body)
+            if (blob) {
+                const reader = blob.stream().getReader()
+                let loaded = 0
+                const total = blob.size
+                const read = async () => {
+                    const {done, value} = await reader.read()
+                    if (done) {
+                        return
+                    }
+                    onUploadProgress({
+                        loaded: loaded += value.byteLength,
+                        total,
+                        chunk: value
+                    })
+                    await read()
                 }
+                await read()
             }
-            // 状态码校验，默认200-300为成功
-            const validateStatusFn = validateStatus === true
-                ? (status: number) => status >= 200 && status < 300
-                : validateStatus
-            if (!status || !validateStatusFn || validateStatusFn(status)) {
-                onSuccess?.(response)
-                resolve(response)
-            } else {
-                makeError(AjaxError, onError, 'Request failed with status code ' + status)
-            }
-        })
-        // 错误
-        xhr.addEventListener('error', () => makeError(NetworkError, onError))
-        // 超时
-        xhr.addEventListener('timeout', () => makeError(TimeoutError, onTimeout))
-        // 中断
-        xhr.addEventListener('abort', () => makeError(AbortError, onAbort))
-        const abortFn = () => xhr.abort()
-        abortToken?.on(abortFn)
-
-        xhr.addEventListener('loadend', () => {
-            // 请求结束后移除abortToken，并触发onComplete
-            abortToken?.off(abortFn)
-            onComplete?.(response, error)
-        })
-
-        // 下载进度
-        onDownloadProgress && xhr.addEventListener('progress', onDownloadProgress)
-        // 上传进度
-        onUploadProgress && xhr.upload.addEventListener('progress', onUploadProgress)
-
-        /**
-         * 生成错误实例
-         * @param ErrorClass
-         * @param message
-         * @param callback
-         */
-        function makeError(ErrorClass: typeof AjaxError, callback?: (error: any) => void, message = '') {
-            error = new ErrorClass(message, {
-                cause: {config}
-            })
-            callback?.(error)
-            reject(error)
         }
-    })
 
-    ajaxInstance.instance = xhr
-    return ajaxInstance
+        if (onDownloadProgress) {
+            const contentLength = response.headers.get('content-length')
+            if (contentLength && response.body) {
+                let data = new Uint8Array()
+
+                const writableStream = new WritableStream<Uint8Array>({
+                    write(chunk) {
+                        const totalLength = data.byteLength + chunk.byteLength
+                        const newData = new Uint8Array(totalLength)
+                        newData.set(data)
+                        newData.set(chunk, data.byteLength)
+                        data = newData
+                        onDownloadProgress({
+                            loaded: data.byteLength,
+                            total: +contentLength,
+                            chunk
+                        })
+                    },
+                    close() {
+                        result = data
+                    }
+                })
+                await response.body.pipeTo(writableStream)
+            }
+        }
+    } catch (e) {
+        console.error(e)
+        throw e instanceof AjaxError ? e : new AjaxError(void 0, {cause: {config}})
+    }
+
+    /**
+     * ------------------------------------------------------------------
+     * 响应
+     */
+
+    clearTimeout(timeoutId)
+
+    if (onDownloadProgress) {
+        switch (responseType) {
+            case 'arrayBuffer':
+                result = (result as Uint8Array).buffer
+                break
+            case 'blob':
+                const blob = new Blob([result])
+                result = blob
+                break
+            default:
+                throw new AjaxError(`"${responseType}" is not supported when using "onDownloadProgress"`, {cause: {config}})
+        }
+    } else {
+        try {
+            switch (responseType) {
+                case 'json':
+                    result = await response.json()
+                    break
+                case 'text':
+                    result = await response.text()
+                    break
+                case 'blob':
+                    result = await response.blob()
+                    break
+                case 'arrayBuffer':
+                    result = await response.arrayBuffer()
+                    break
+                case 'formData':
+                    result = await response.formData()
+            }
+        } catch (e) {
+            console.error(e)
+            throw e instanceof AjaxError ? e : new AjaxError(void 0, {cause: {config}})
+        }
+    }
+
+    return {result, response, config}
 }
 
-ajax.get = aliasWithoutData('get')
-ajax.delete = aliasWithoutData('delete')
-ajax.head = aliasWithoutData('head')
-ajax.options = aliasWithoutData('options')
+/**
+ * ------------------------------------------------------------------
+ * alias
+ */
 
-function aliasWithoutData(method: Method) {
-    return <T = any>(url: string, config?: AjaxConfig<T>) => ajax<T>({...config, method, url})
+ajax.get = aliasWithoutBody('get')
+ajax.delete = aliasWithoutBody('delete')
+ajax.head = aliasWithoutBody('head')
+ajax.options = aliasWithoutBody('options')
+
+function aliasWithoutBody(method: Method) {
+    return <T = any>(url: string, config?: AjaxConfig) => ajax<T>({...config, method, url})
 }
 
-ajax.post = aliasWithData('post')
-ajax.put = aliasWithData('put')
-ajax.patch = aliasWithData('patch')
+ajax.post = aliasWithBody('post')
+ajax.put = aliasWithBody('put')
+ajax.patch = aliasWithBody('patch')
 
-function aliasWithData(method: Method) {
-    return <T = any>(url: string, data: any, config?: AjaxConfig<T>) => ajax<T>({...config, method, url, data})
+function aliasWithBody(method: Method) {
+    return <T = any>(url: string, body: any, config?: AjaxConfig) => ajax<T>({...config, method, url, body})
 }

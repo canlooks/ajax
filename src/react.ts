@@ -1,41 +1,44 @@
+import {AjaxConfig} from '..'
 import {useEffect, useMemo} from 'react'
-import {AbortToken} from './abort'
-import {AjaxConfig, Service} from '..'
 
-const allAbortToken = new WeakMap<object, AbortToken>()
+type ClassType<T = any> = new (...args: any[]) => T
+
+const instance_abortController = new WeakMap<object, AbortController>()
 
 /**
  * React类组件修饰器
- * @param connector 
+ * @param connector
  */
-export function connect(connector: {[p: string]: typeof Service}): <T>(target: T) => T
-export function connect(connector: {[p: string]: typeof Service}): any {
+export function connect(connector: {[p: string]: ClassType}): <T>(target: T) => T
+export function connect(connector: {[p: string]: ClassType}): any {
     return (target: any) => {
-        return class extends target {
-            constructor(...a: any[]) {
-                super(...a)
-                const abortToken = new AbortToken()
-                allAbortToken.set(this, abortToken)
-                for (const k in connector) {
-                    this[k] = new connector[k]({abortToken})
+        return {
+            [target.name]: class extends target {
+                constructor(...a: any[]) {
+                    super(...a)
+                    const abortToken = new AbortController()
+                    instance_abortController.set(this, abortToken)
+                    for (const k in connector) {
+                        this[k] = new connector[k]({abortToken})
+                    }
                 }
-            }
 
-            componentWillUnmount() {
-                allAbortToken.get(this)!.abort()
-                allAbortToken.delete(this)
-                super.componentWillUnmount?.()
-            }
+                componentWillUnmount() {
+                    instance_abortController.get(this)!.abort()
+                    instance_abortController.delete(this)
+                    super.componentWillUnmount?.()
+                }
+            }[target.name]
         }
     }
 }
 
-export function useService<T>(service: new (config?: AjaxConfig) => T): T {
-    let abortToken = useMemo(() => new AbortToken(), [])
+export function useService<T>(service: ClassType<T>): T {
+    let abortToken = useMemo(() => new AbortController(), [])
 
     useEffect(() => () => {
         abortToken.abort()
     }, [])
 
-    return useMemo(() => new service({abortToken}), [])
+    return useMemo(() => new service({signal: abortToken.signal}), [])
 }

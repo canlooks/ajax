@@ -1,9 +1,6 @@
-declare namespace CAjax {
-    type Key = string | number | symbol
-    type Fn = (...args: any[]) => any
-
+declare namespace Ajax {
     /**
-     * -------------------------------------------------------------------------
+     * ---------------------------------------------------------------------
      * 配置项
      */
 
@@ -19,60 +16,73 @@ declare namespace CAjax {
         'link' | 'LINK' |
         'unlink' | 'UNLINK'
 
+    type ProgressEvent = {
+        loaded: number
+        total: number
+        chunk: Uint8Array
+    }
+
     type ProgressCallback = (progressEvent: ProgressEvent) => void
 
-    type AjaxConfig<T = any> = {
-        url?: string
+    interface AjaxConfig extends RequestInit {
         method?: Method
-        headers?: {[p: string]: any}
+        url?: string | URL
         params?: {[p: string | number]: any}
-        data?: any
+        /** 默认`60秒`; `0`表示无超时 */
         timeout?: number
-        abortToken?: AbortToken
-        auth?: {
-            username: string
-            password: string
-        }
-        responseType?: XMLHttpRequestResponseType
-        withCredentials?: boolean
-        validateStatus?: ((status: number) => boolean) | boolean
-        onSuccess?(data: ResponseBody<T>): void
-        onTimeout?(error: TimeoutError): void
-        onError?(error: AjaxError): void
-        onComplete?(data: ResponseBody<T> | null, error: AjaxError | null): void
-        onAbort?(error: AbortError): void
+        /**
+         * 若设置了{@link onDownloadProgress}，默认为`undefined`，否则默认为`json`
+         */
+        responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'
+        /**
+         * 仅支持body中只有一个文件的情况，若同时上传多个文件需手动实现
+         */
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
     }
 
     /**
-     * -------------------------------------------------------------------------
-     * 中断
+     * ---------------------------------------------------------------------
+     * Ajax方法与alias
      */
 
-    class AbortToken {
-        on(callback: Fn): void
+    type AjaxReturn<T> = Promise<AjaxResponse<T>>
 
-        off(callback: Fn): void
+    type AliasWithoutBody = <T>(url: string, config?: AjaxConfig<T>) => AjaxReturn<T>
 
-        abort(): void
+    type AliasWithBody = <T>(url: string, data: any, config?: AjaxConfig<T>) => AjaxReturn<T>
+
+    const ajax: {
+        <T>(config?: AjaxConfig<T>): AjaxReturn<T>
+
+        get: AliasWithoutBody
+        delete: AliasWithoutBody
+        head: AliasWithoutBody
+        options: AliasWithoutBody
+
+        post: AliasWithBody
+        put: AliasWithBody
+        patch: AliasWithBody
     }
 
     /**
-     * -------------------------------------------------------------------------
-     * 错误类
+     * ---------------------------------------------------------------------
+     * 响应
      */
 
-    type AjaxErrorCause<T> = {
-        config?: AjaxConfig<T>
-        target?: any
-        propertyKey?: Key
-        error?: any
-        [p: string]: any
+    type AjaxResponse<T = any> = {
+        result: T
+        response: Response
+        config: AjaxConfig
     }
 
+    /**
+     * ---------------------------------------------------------------------
+     * 错误
+     */
+
     class AjaxError extends Error {
-        type: string
+        type: 'ajaxError' | 'networkError' | 'abortError' | 'timeoutError'
     }
 
     class NetworkError extends AjaxError {}
@@ -80,115 +90,6 @@ declare namespace CAjax {
     class AbortError extends AjaxError {}
 
     class TimeoutError extends AjaxError {}
-
-    /**
-     * -------------------------------------------------------------------------
-     * Ajax实例
-     */
-
-    interface AjaxInstance<T> extends Promise<T> {
-        instance: XMLHttpRequest
-        abort(): void
-    }
-
-    type ResponseBody<T = any> = {
-        result: T
-        config: AjaxConfig<T>
-        instance: XMLHttpRequest
-        status: number
-        statusText: string
-        rawHeaders?: string
-        headers: {[p: string]: number | string | string[]}
-    }
-
-    type AjaxReturn<T> = AjaxInstance<ResponseBody<T>>
-
-    type AliasWithoutData = <T>(url: string, config?: AjaxConfig<T>) => AjaxReturn<T>
-
-    type AliasWithData = <T>(url: string, data: any, config?: AjaxConfig<T>) => AjaxReturn<T>
-
-    const ajax: {
-        <T>(config?: AjaxConfig<T>): AjaxReturn<T>
-
-        get: AliasWithoutData
-        delete: AliasWithoutData
-        head: AliasWithoutData
-        options: AliasWithoutData
-
-        post: AliasWithData
-        put: AliasWithData
-        patch: AliasWithData
-    }
-
-    /**
-     * -------------------------------------------------------------------------
-     * 模块化
-     */
-
-    function registerAdapter(adapter: (config?: AjaxConfig) => any): void
-
-    type RequestInterceptor = (config: AjaxConfig) => AjaxConfig | Promise<AjaxConfig>
-
-    type ResponseInterceptor = (response: any, error: any, config: AjaxConfig) => any
-
-    class Service {
-        constructor(config?: AjaxConfig)
-
-        config: AjaxConfig
-
-        post<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
-
-        put<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
-
-        patch<T = any>(url: string, data?: any, config?: AjaxConfig): Promise<T>
-
-        get<T = any>(url: string, config?: AjaxConfig): Promise<T>
-
-        delete<T = any>(url: string, config?: AjaxConfig): Promise<T>
-
-        head<T = any>(url: string, config?: AjaxConfig): Promise<T>
-
-        options<T = any>(url: string, config?: AjaxConfig): Promise<T>
-
-        request<T = any>(method: Method, url: string, data?: any, config?: AjaxConfig): Promise<T>
-    }
-
-    /**
-     * -------------------------------------------------------------------------
-     * 类修饰器
-     */
-
-    type ServiceDecorator = (target: typeof Service) => void
-
-    function Configure(url: string): ServiceDecorator
-    function Configure(config: AjaxConfig): ServiceDecorator
-
-    /**
-     * 追加请求拦截器
-     * @param filter 
-     */
-    function BeforeRequest(filter: RequestInterceptor): ServiceDecorator
-
-    /**
-     * 追加响应拦截器
-     * @param filter 
-     */
-    function BeforeResponse(filter: ResponseInterceptor): ServiceDecorator
-
-    /**
-     * -------------------------------------------------------------------------
-     * 方法修饰器
-     */
-
-    type CallbackDecorator = (target: typeof Service, propertyKey: Key, descriptor: TypedPropertyDescriptor<Fn>) => void
-
-    const onSuccess: CallbackDecorator & (() => CallbackDecorator)
-
-    const onFailed: CallbackDecorator & (() => CallbackDecorator)
-
-    const onComplete: CallbackDecorator & (() => CallbackDecorator)
 }
 
-export = CAjax
-
-export as namespace CAjax
+export = Ajax
