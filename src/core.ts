@@ -1,9 +1,9 @@
-import {AjaxConfig, AjaxResponse, AjaxReturn, Method} from '..'
+import {AjaxReturn, NormalizedAjaxConfig} from '..'
 import {AbortError, AjaxError, NetworkError, TimeoutError} from './error'
 import {findBodyFiles} from './util'
 
-export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
-    const {
+export async function core<T = any>(config: NormalizedAjaxConfig): AjaxReturn<T> {
+    let {
         url,
         params,
         onUploadProgress,
@@ -13,8 +13,19 @@ export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
         ...init
     } = config
 
+    /**
+     * ------------------------------------------------------------------
+     * URL
+     */
+
     if (!url) {
-        throw new AjaxError(`"url" is required`, {cause: {config}})
+        throw new AjaxError(`"url" is required`, {config})
+    }
+
+    if (params) {
+        for (const [name, value] of params) {
+            url.searchParams.set(name, value)
+        }
     }
 
     /**
@@ -29,7 +40,7 @@ export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
         abortController ||= new AbortController()
         timeoutId = setTimeout(() => {
             abortController!.abort(
-                new TimeoutError(void 0, {cause: {config}})
+                new TimeoutError(void 0, {config})
             )
         }, timeout)
     }
@@ -38,7 +49,7 @@ export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
         abortController ||= new AbortController()
         config.signal.addEventListener('abort', () => {
             abortController!.abort(
-                new AbortError(void 0, {cause: {config}})
+                new AbortError(void 0, {config})
             )
         })
     }
@@ -56,10 +67,10 @@ export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
         })
     } catch (e) {
         console.error(e)
-        throw e instanceof AjaxError ? e : new NetworkError(void 0, {cause: {config}})
+        throw e instanceof AjaxError ? e : new NetworkError(void 0, {config})
     }
     if (!response.ok) {
-        throw new NetworkError(`request failed with status ${response.status}`, {cause: {config}})
+        throw new NetworkError(`request failed with status ${response.status}`, {config})
     }
 
     let result: any
@@ -119,7 +130,7 @@ export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
         }
     } catch (e) {
         console.error(e)
-        throw e instanceof AjaxError ? e : new AjaxError(void 0, {cause: {config}})
+        throw e instanceof AjaxError ? e : new AjaxError(void 0, {config})
     }
 
     /**
@@ -138,8 +149,10 @@ export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
                 const blob = new Blob([result])
                 result = blob
                 break
+            case void 0:
+                break
             default:
-                throw new AjaxError(`"${responseType}" is not supported when using "onDownloadProgress"`, {cause: {config}})
+                throw new AjaxError(`"${responseType}" is not supported when using "onDownloadProgress"`, {config})
         }
     } else {
         try {
@@ -161,31 +174,9 @@ export async function ajax<T = any>(config: AjaxConfig): AjaxReturn<T> {
             }
         } catch (e) {
             console.error(e)
-            throw e instanceof AjaxError ? e : new AjaxError(void 0, {cause: {config}})
+            throw e instanceof AjaxError ? e : new AjaxError(void 0, {config})
         }
     }
 
     return {result, response, config}
-}
-
-/**
- * ------------------------------------------------------------------
- * alias
- */
-
-ajax.get = aliasWithoutBody('get')
-ajax.delete = aliasWithoutBody('delete')
-ajax.head = aliasWithoutBody('head')
-ajax.options = aliasWithoutBody('options')
-
-function aliasWithoutBody(method: Method) {
-    return <T = any>(url: string, config?: AjaxConfig) => ajax<T>({...config, method, url})
-}
-
-ajax.post = aliasWithBody('post')
-ajax.put = aliasWithBody('put')
-ajax.patch = aliasWithBody('patch')
-
-function aliasWithBody(method: Method) {
-    return <T = any>(url: string, body: any, config?: AjaxConfig) => ajax<T>({...config, method, url, body})
 }

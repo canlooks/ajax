@@ -1,33 +1,33 @@
 export const prefix = '[@canlooks/ajax] '
 
 export class AjaxError extends Error {
-    constructor(message = 'Ajax Error', options?: ErrorOptions) {
-        super(prefix + message, options)
+    constructor(message = 'Ajax Error', cause?: any) {
+        super(prefix + message, {cause})
     }
 
     type = 'ajaxError'
 }
 
 export class NetworkError extends AjaxError {
-    constructor(message = 'Network Error', options?: ErrorOptions) {
-        super(message, options)
+    constructor(message = 'Network Error', cause?: any) {
+        super(message, cause)
     }
 
-    type = 'networkError'
+    override type = 'networkError'
 }
 
 export class AbortError extends AjaxError {
-    constructor(message = 'Request was aborted', options?: ErrorOptions) {
-        super(message, options)
+    constructor(message = 'Request was aborted', cause?: any) {
+        super(message, cause)
     }
 
-    type = 'abortError'
+    override type = 'abortError'
 }
 
 export class TimeoutError extends AjaxError {
-    constructor(message = 'Request timeout', options?: ErrorOptions) {
-        super(message, options)
+    constructor(message = 'Request timeout', cause?: any) {
+        super(message, cause)
     }
 
-    type = 'timeoutError'
+    override type = 'timeoutError'
 }

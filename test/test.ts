@@ -1,18 +1,20 @@
-import {ajax} from '../src'
-import fs from 'fs'
-import path from 'path'
+// import {mergeConfig} from '../src'
+//
+// const t = mergeConfig({
+//     headers: {
+//         a: '1'
+//     }
+// }, {
+//     headers: new Headers({b: '2'})
+// })
+//
+// // @ts-ignore
+// console.log(11, t.headers.get('a'))
+// // @ts-ignore
+// console.log(11, t.headers.get('b'))
 
-const image = fs.readFileSync(path.resolve('test/image.png'))
+const url1 = new URL('https://www.baidu.com')
 
-ajax({
-    method: 'POST',
-    url: 'http://localhost:3000/upload',
-    body: new Blob([image]),
-    onUploadProgress(e) {
-        console.log(10, e)
-    }
-}).then(res => {
-    console.log('success', res.result)
-}).catch(err => {
-    console.log('error', err)
-})
+const url2 = new URL('https://google.com/abc?a=1', url1)
+
+console.log(20, url2.toString())

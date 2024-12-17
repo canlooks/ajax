@@ -27,7 +27,7 @@ declare namespace Ajax {
     interface AjaxConfig extends RequestInit {
         method?: Method
         url?: string | URL
-        params?: {[p: string | number]: any}
+        params?: string[][] | Record<string, string> | string | URLSearchParams
         /** 默认`60秒`; `0`表示无超时 */
         timeout?: number
         /**
@@ -41,36 +41,65 @@ declare namespace Ajax {
         onDownloadProgress?: ProgressCallback
     }
 
+    interface NormalizedAjaxConfig extends Omit<AjaxConfig, 'url' | 'params' | 'headers'> {
+        url?: URL
+        params?: URLSearchParams
+        headers?: Headers
+    }
+
     /**
      * ---------------------------------------------------------------------
-     * Ajax方法与alias
+     * Ajax方法，alias与instance
      */
 
     type AjaxReturn<T> = Promise<AjaxResponse<T>>
 
-    type AliasWithoutBody = <T>(url: string, config?: AjaxConfig<T>) => AjaxReturn<T>
+    type AliasWithoutBody = <T>(url: string, config?: AjaxConfig) => AjaxReturn<T>
 
-    type AliasWithBody = <T>(url: string, data: any, config?: AjaxConfig<T>) => AjaxReturn<T>
+    type AliasWithBody = <T>(url: string, data: any, config?: AjaxConfig) => AjaxReturn<T>
 
-    const ajax: {
-        <T>(config?: AjaxConfig<T>): AjaxReturn<T>
-
+    type AjaxAlias = {
+        /** alias without body */
         get: AliasWithoutBody
         delete: AliasWithoutBody
         head: AliasWithoutBody
         options: AliasWithoutBody
-
+        /** alias with body */
         post: AliasWithBody
         put: AliasWithBody
         patch: AliasWithBody
+        /** interceptor */
     }
+
+    type RequestInterceptor = <T extends NormalizedAjaxConfig>(config: T) => T | Promise<T>
+    type ResponseInterceptor = (response: any, error: any, config: NormalizedAjaxConfig) => any
+
+    type InterceptorConfig<T> = {
+        add(interceptor: T): T
+        delete(interceptor: T): void
+    }
+
+    type InterceptorsDefinition = {
+        requestInterceptors: Set<RequestInterceptor>
+        responseInterceptors: Set<ResponseInterceptor>
+        beforeRequest: InterceptorConfig<RequestInterceptor>
+        beforeResponse: InterceptorConfig<any>
+    }
+
+    interface Ajax extends AjaxAlias, InterceptorsDefinition {
+        <T = any>(config?: AjaxConfig): AjaxReturn<T>
+        config: AjaxConfig
+        extend(config?: AjaxConfig): Ajax
+    }
+
+    const ajax: Ajax
 
     /**
      * ---------------------------------------------------------------------
      * 响应
      */
 
-    type AjaxResponse<T = any> = {
+    type AjaxResponse<T> = {
         result: T
         response: Response
         config: AjaxConfig

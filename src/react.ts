@@ -1,4 +1,3 @@
-import {AjaxConfig} from '..'
 import {useEffect, useMemo} from 'react'
 
 type ClassType<T = any> = new (...args: any[]) => T
