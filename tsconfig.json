@@ -3,7 +3,7 @@
     "target": "ESNext",
     "outDir": "dist",
     "moduleResolution": "Node10",
-//    "skipLibCheck": true,
+    "skipLibCheck": true,
     "importHelpers": true,
     "esModuleInterop": true,
     "strict": true,
