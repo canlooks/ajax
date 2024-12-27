@@ -53,8 +53,10 @@ export class Service {
  * 类修饰器
  */
 
-export function Module(config: AjaxConfig): any {
-    return (target: typeof Service) => {
+export function Module<T extends typeof Service>(target: T): T
+export function Module(config?: AjaxConfig): <T extends typeof Service>(target: T) => T
+export function Module(a: any): any {
+    const fn = (config: AjaxConfig = {}) => (target: typeof Service) => {
         return {
             [target.name]: class extends target {
                 constructor(config1: AjaxConfig = {}) {
@@ -65,6 +67,7 @@ export function Module(config: AjaxConfig): any {
             }
         }[target.name]
     }
+    return typeof a === 'function' ? fn()(a) : fn(a)
 }
 
 /**

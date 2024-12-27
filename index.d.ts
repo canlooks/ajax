@@ -36,18 +36,16 @@ declare namespace Ajax {
          * 若设置了{@link onDownloadProgress}，默认为`undefined`，否则默认为`json`
          */
         responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'
-        /**
-         * 仅支持body中只有一个文件的情况，若同时上传多个文件需手动实现
-         */
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
     }
 
-    interface AjaxConfig extends Omit<AjaxConfig, 'url' | 'params' | 'headers'> {
-        url?: string
-        params?: URLSearchParams
-        headers?: Headers
+    interface NormalizedConfig extends Omit<AjaxConfig, 'params' | 'headers'> {
+        params: URLSearchParams
+        headers: Headers
     }
+
+    type NormalizedConfig = Omit<AjaxConfig, 'params' | 'headers'> & Required<Pick<AjaxConfig, 'params' | 'headers'>>
 
     /**
      * ---------------------------------------------------------------------
@@ -73,8 +71,8 @@ declare namespace Ajax {
         /** interceptor */
     }
 
-    type RequestInterceptor = <T extends AjaxConfig>(config: T) => T | Promise<T>
-    type ResponseInterceptor = (response: any, error: any, config: AjaxConfig) => any
+    type RequestInterceptor = <T extends NormalizedConfig>(config: T) => T | Promise<T>
+    type ResponseInterceptor = (response: any, error: any, config: NormalizedConfig) => any
 
     type InterceptorsDefinition = {
         beforeRequest: Set<RequestInterceptor>
@@ -134,8 +132,10 @@ declare namespace Ajax {
         patch(url: string, body: any, config?: AjaxConfig): Promise<any>
     }
 
+    type ModuleDecorator = <T extends typeof Service>(target: T) => T
+
     /** 类修饰器 */
-    function Module(config: AjaxConfig): <T extends typeof Service>(target: T) => T
+    const Module: ModuleDecorator & ((config?: AjaxConfig) => ModuleDecorator)
     /** 方法修饰器，用于定义拦截器 */
     const BeforeRequest: MethodDecorator & (() => MethodDecorator)
     const BeforeResponse: MethodDecorator & (() => MethodDecorator)

@@ -1,4 +1,4 @@
-import {AjaxConfig} from '..'
+import {AjaxConfig, NormalizedConfig} from '..'
 
 /**
  * 查找请求体中的Blob对象
@@ -23,7 +23,7 @@ export function findBodyFiles(body: any): Blob | undefined {
  * 合并配置
  * @param config
  */
-export function mergeConfig(...config: AjaxConfig[]): AjaxConfig {
+export function mergeConfig(...config: AjaxConfig[]): NormalizedConfig {
     return config.reduce((prev, next) => {
         return {
             ...prev,
@@ -33,7 +33,7 @@ export function mergeConfig(...config: AjaxConfig[]): AjaxConfig {
             headers: mergeHeaders(prev.headers, next.headers),
             signal: mergeSignal(prev.signal, next.signal)
         }
-    }) as AjaxConfig
+    }) as NormalizedConfig
 
     function mergeUrl(prev?: string | URL, next?: string | URL): string | undefined {
         if (prev instanceof URL) {
@@ -56,7 +56,7 @@ export function mergeConfig(...config: AjaxConfig[]): AjaxConfig {
         return `${prev}/${next}`
     }
 
-    function mergeParams(prev: AjaxConfig['params'], next: AjaxConfig['params']): URLSearchParams | undefined {
+    function mergeParams(prev: AjaxConfig['params'], next: AjaxConfig['params']): URLSearchParams {
         const params = new URLSearchParams(prev)
         if (!(next instanceof URLSearchParams)) {
             next = new URLSearchParams(next)
@@ -73,7 +73,7 @@ export function mergeConfig(...config: AjaxConfig[]): AjaxConfig {
         return params
     }
 
-    function mergeHeaders(prev?: HeadersInit, next?: HeadersInit): Headers | undefined {
+    function mergeHeaders(prev?: HeadersInit, next?: HeadersInit): Headers {
         const headers = new Headers(prev)
         if (!(next instanceof Headers)) {
             next = new Headers(next)

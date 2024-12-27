@@ -5,25 +5,17 @@ import {AjaxConfig} from '..'
     url: 'https://cn.bing.com'
 })
 class MyService extends Service {
-
-}
-
-@Module({
-    url: '/search'
-})
-class MyService1 extends MyService {
     @BeforeRequest()
     beforeRequest(config: AjaxConfig) {
+        console.log(17, config)
         config.responseType = 'text'
         return config
     }
+}
 
+class MyService1 extends MyService {
     test() {
-        return this.get('', {
-            params: {
-                q: '芒果tv'
-            }
-        })
+        return this.get('/search')
     }
 }
 
