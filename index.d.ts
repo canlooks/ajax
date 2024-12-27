@@ -1,3 +1,5 @@
+import {Module} from './src'
+
 declare namespace Ajax {
     /**
      * ---------------------------------------------------------------------
@@ -41,8 +43,8 @@ declare namespace Ajax {
         onDownloadProgress?: ProgressCallback
     }
 
-    interface NormalizedAjaxConfig extends Omit<AjaxConfig, 'url' | 'params' | 'headers'> {
-        url?: URL
+    interface AjaxConfig extends Omit<AjaxConfig, 'url' | 'params' | 'headers'> {
+        url?: string
         params?: URLSearchParams
         headers?: Headers
     }
@@ -71,19 +73,12 @@ declare namespace Ajax {
         /** interceptor */
     }
 
-    type RequestInterceptor = <T extends NormalizedAjaxConfig>(config: T) => T | Promise<T>
-    type ResponseInterceptor = (response: any, error: any, config: NormalizedAjaxConfig) => any
-
-    type InterceptorConfig<T> = {
-        add(interceptor: T): T
-        delete(interceptor: T): void
-    }
+    type RequestInterceptor = <T extends AjaxConfig>(config: T) => T | Promise<T>
+    type ResponseInterceptor = (response: any, error: any, config: AjaxConfig) => any
 
     type InterceptorsDefinition = {
-        requestInterceptors: Set<RequestInterceptor>
-        responseInterceptors: Set<ResponseInterceptor>
-        beforeRequest: InterceptorConfig<RequestInterceptor>
-        beforeResponse: InterceptorConfig<any>
+        beforeRequest: Set<RequestInterceptor>
+        beforeResponse: Set<ResponseInterceptor>
     }
 
     interface Ajax extends AjaxAlias, InterceptorsDefinition {
@@ -119,6 +114,31 @@ declare namespace Ajax {
     class AbortError extends AjaxError {}
 
     class TimeoutError extends AjaxError {}
+
+    /**
+     * ---------------------------------------------------------------------
+     * 模块化
+     */
+
+    class Service {
+        ajax: Ajax
+        constructor(public config?: AjaxConfig)
+        /** alias without body */
+        get(url: string, config?: AjaxConfig): Promise<any>
+        delete(url: string, config?: AjaxConfig): Promise<any>
+        head(url: string, config?: AjaxConfig): Promise<any>
+        options(url: string, config?: AjaxConfig): Promise<any>
+        /** alias with body */
+        post(url: string, body: any, config?: AjaxConfig): Promise<any>
+        put(url: string, body: any, config?: AjaxConfig): Promise<any>
+        patch(url: string, body: any, config?: AjaxConfig): Promise<any>
+    }
+
+    /** 类修饰器 */
+    function Module(config: AjaxConfig): <T extends typeof Service>(target: T) => T
+    /** 方法修饰器，用于定义拦截器 */
+    const BeforeRequest: MethodDecorator & (() => MethodDecorator)
+    const BeforeResponse: MethodDecorator & (() => MethodDecorator)
 }
 
 export = Ajax

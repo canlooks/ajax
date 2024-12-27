@@ -1,4 +1,4 @@
-import {AjaxConfig, NormalizedAjaxConfig} from '..'
+import {AjaxConfig} from '..'
 
 /**
  * 查找请求体中的Blob对象
@@ -23,35 +23,49 @@ export function findBodyFiles(body: any): Blob | undefined {
  * 合并配置
  * @param config
  */
-export function mergeConfig(...config: AjaxConfig[]): NormalizedAjaxConfig {
+export function mergeConfig(...config: AjaxConfig[]): AjaxConfig {
     return config.reduce((prev, next) => {
         return {
             ...prev,
             ...next,
-            ...prev.url && next.url
-                ? {url: mergeUrl(prev.url, next.url)}
-                : {},
-            ...prev.params && next.params
-                ? {params: mergeParams(prev.params, next.params)}
-                : {},
-            ...prev.headers && next.headers
-                ? {headers: mergeHeaders(prev.headers, next.headers)}
-                : {},
-            ...prev.signal && next.signal
-                ? {signal: mergeSignal(prev.signal, next.signal)}
-                : {}
+            url: mergeUrl(prev.url, next.url),
+            params: mergeParams(prev.params, next.params),
+            headers: mergeHeaders(prev.headers, next.headers),
+            signal: mergeSignal(prev.signal, next.signal)
         }
-    }) as NormalizedAjaxConfig
+    }) as AjaxConfig
 
-    function mergeUrl(prev: string | URL, next: string | URL): URL {
-        const base = new URL(prev)
-        return new URL(next, base)
+    function mergeUrl(prev?: string | URL, next?: string | URL): string | undefined {
+        if (prev instanceof URL) {
+            prev = prev.href
+        }
+        if (next instanceof URL) {
+            next = next.href
+        }
+        if (!prev) {
+            return next
+        }
+        if (!next) {
+            return prev
+        }
+        if (/^([a-z]+:)?\/\//i.test(next)) {
+            return next
+        }
+        prev = prev.replace(/\/+$/, '')
+        next = next.replace(/^\/+/, '')
+        return `${prev}/${next}`
     }
 
-    function mergeParams(prev: AjaxConfig['params'], next: AjaxConfig['params']): URLSearchParams {
+    function mergeParams(prev: AjaxConfig['params'], next: AjaxConfig['params']): URLSearchParams | undefined {
         const params = new URLSearchParams(prev)
         if (!(next instanceof URLSearchParams)) {
             next = new URLSearchParams(next)
+        }
+        if (!prev) {
+            return next
+        }
+        if (!next) {
+            return params
         }
         for (const [name, value] of next) {
             params.set(name, value)
@@ -59,10 +73,16 @@ export function mergeConfig(...config: AjaxConfig[]): NormalizedAjaxConfig {
         return params
     }
 
-    function mergeHeaders(prev: HeadersInit, next: HeadersInit): Headers {
+    function mergeHeaders(prev?: HeadersInit, next?: HeadersInit): Headers | undefined {
         const headers = new Headers(prev)
         if (!(next instanceof Headers)) {
             next = new Headers(next)
+        }
+        if (!prev) {
+            return next
+        }
+        if (!next) {
+            return headers
         }
         for (const [name, value] of next) {
             headers.set(name, value)
@@ -70,7 +90,13 @@ export function mergeConfig(...config: AjaxConfig[]): NormalizedAjaxConfig {
         return headers
     }
 
-    function mergeSignal(prev: AbortSignal, next: AbortSignal) {
+    function mergeSignal(prev?: AbortSignal | null, next?: AbortSignal | null): AbortSignal | null | undefined {
+        if (!prev) {
+            return next
+        }
+        if (!next) {
+            return prev
+        }
         const abortController = new AbortController()
         prev.onabort = next.onabort = () => abortController.abort()
         return abortController.signal

@@ -1,11 +1,11 @@
 import {core} from './core'
-import {Ajax, AjaxConfig, InterceptorConfig, Method, NormalizedAjaxConfig, RequestInterceptor, ResponseInterceptor} from '../index'
+import {Ajax, AjaxConfig, Method, RequestInterceptor, ResponseInterceptor} from '../index'
 import {mergeConfig} from './util'
 
 export const ajax = createInstance()
 
 function createInstance(parentConfig: AjaxConfig = {}) {
-    const ajaxInstance = (async (config: NormalizedAjaxConfig) => {
+    const ajaxInstance = (async (config: AjaxConfig) => {
         config = await enforceRequestInterceptors(mergeConfig(parentConfig, config))
         let res
         try {
@@ -24,19 +24,8 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * interceptors
      */
 
-    const requestInterceptors = ajaxInstance.requestInterceptors = new Set<RequestInterceptor>()
-    const responseInterceptors = ajaxInstance.responseInterceptors = new Set<ResponseInterceptor>()
-
-    const defineInterceptorConfig = (type: 'request' | 'response'): InterceptorConfig<any> => {
-        const targetSet = type === 'request' ? requestInterceptors : responseInterceptors
-        return {
-            add: interceptor => targetSet.add(interceptor),
-            delete: interceptor => targetSet.delete(interceptor)
-        }
-    }
-
-    ajaxInstance.beforeRequest = defineInterceptorConfig('request')
-    ajaxInstance.beforeResponse = defineInterceptorConfig('response')
+    const beforeRequest = ajaxInstance.beforeRequest = new Set<RequestInterceptor>()
+    const beforeResponse = ajaxInstance.beforeResponse = new Set<ResponseInterceptor>()
 
     /**
      * ------------------------------------------------------------------
@@ -76,8 +65,8 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * 执行请求拦截器
      * @param config
      */
-    async function enforceRequestInterceptors<T extends NormalizedAjaxConfig>(config: T): Promise<T> {
-        for (const interceptor of requestInterceptors) {
+    async function enforceRequestInterceptors<T extends AjaxConfig>(config: T): Promise<T> {
+        for (const interceptor of beforeRequest) {
             const newConfig = await interceptor(config)
             if (typeof newConfig === 'object' && newConfig) {
                 config = newConfig
@@ -93,8 +82,8 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * @param config
      * @param isFinalSuccess
      */
-    async function enforceResponseInterceptors(response: any, error: any, config: NormalizedAjaxConfig, isFinalSuccess: boolean) {
-        for (const interceptor of responseInterceptors) {
+    async function enforceResponseInterceptors(response: any, error: any, config: AjaxConfig, isFinalSuccess: boolean) {
+        for (const interceptor of beforeResponse) {
             try {
                 const returnValue = await interceptor(response, error, config)
                 if (typeof returnValue !== 'undefined') {

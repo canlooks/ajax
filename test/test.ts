@@ -1,20 +1,33 @@
-// import {mergeConfig} from '../src'
-//
-// const t = mergeConfig({
-//     headers: {
-//         a: '1'
-//     }
-// }, {
-//     headers: new Headers({b: '2'})
-// })
-//
-// // @ts-ignore
-// console.log(11, t.headers.get('a'))
-// // @ts-ignore
-// console.log(11, t.headers.get('b'))
+import {BeforeRequest, Module, Service} from '../src'
+import {AjaxConfig} from '..'
 
-const url1 = new URL('https://www.baidu.com')
+@Module({
+    url: 'https://cn.bing.com'
+})
+class MyService extends Service {
 
-const url2 = new URL('https://google.com/abc?a=1', url1)
+}
 
-console.log(20, url2.toString())
+@Module({
+    url: '/search'
+})
+class MyService1 extends MyService {
+    @BeforeRequest()
+    beforeRequest(config: AjaxConfig) {
+        config.responseType = 'text'
+        return config
+    }
+
+    test() {
+        return this.get('', {
+            params: {
+                q: '芒果tv'
+            }
+        })
+    }
+}
+
+const myService1 = new MyService1()
+myService1.test().then(res => {
+    console.log(30, res)
+})

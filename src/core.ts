@@ -1,8 +1,8 @@
-import {AjaxReturn, NormalizedAjaxConfig} from '..'
+import {AjaxReturn, AjaxConfig} from '..'
 import {AbortError, AjaxError, NetworkError, TimeoutError} from './error'
 import {findBodyFiles} from './util'
 
-export async function core<T = any>(config: NormalizedAjaxConfig): AjaxReturn<T> {
+export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
     let {
         url,
         params,
@@ -23,8 +23,15 @@ export async function core<T = any>(config: NormalizedAjaxConfig): AjaxReturn<T>
     }
 
     if (params) {
-        for (const [name, value] of params) {
-            url.searchParams.set(name, value)
+        if (!(params instanceof URLSearchParams)) {
+            params = new URLSearchParams(params)
+        }
+        if (url instanceof URL) {
+            for (const [name, value] of params) {
+                url.searchParams.set(name, value)
+            }
+        } else {
+            url += `${url.includes('?') ? '&' : '?'}${params.toString()}`
         }
     }
 

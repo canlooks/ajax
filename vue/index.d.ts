@@ -1,3 +1,3 @@
-import {AjaxConfig} from '..'
+import {AjaxConfig, Service} from '..'
 
-export function useService<T>(service: new (config?: AjaxConfig) => T): T
+export function useService<T extends Service>(service: new (config?: AjaxConfig) => T): T
