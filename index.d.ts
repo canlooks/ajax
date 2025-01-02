@@ -40,12 +40,12 @@ declare namespace Ajax {
         onDownloadProgress?: ProgressCallback
     }
 
-    interface NormalizedConfig extends Omit<AjaxConfig, 'params' | 'headers'> {
+    interface ResolvedConfig extends Omit<AjaxConfig, 'params' | 'headers'> {
         params: URLSearchParams
         headers: Headers
     }
 
-    type NormalizedConfig = Omit<AjaxConfig, 'params' | 'headers'> & Required<Pick<AjaxConfig, 'params' | 'headers'>>
+    type ResolvedConfig = Omit<AjaxConfig, 'params' | 'headers'> & Required<Pick<AjaxConfig, 'params' | 'headers'>>
 
     /**
      * ---------------------------------------------------------------------
@@ -71,8 +71,8 @@ declare namespace Ajax {
         /** interceptor */
     }
 
-    type RequestInterceptor = <T extends NormalizedConfig>(config: T) => T | Promise<T>
-    type ResponseInterceptor = (response: any, error: any, config: NormalizedConfig) => any
+    type RequestInterceptor = <T extends ResolvedConfig>(config: T) => T | Promise<T>
+    type ResponseInterceptor = (response: any, error: any, config: ResolvedConfig) => any
 
     type InterceptorsDefinition = {
         beforeRequest: Set<RequestInterceptor>

@@ -1,4 +1,4 @@
-import {AjaxConfig, NormalizedConfig} from '..'
+import {AjaxConfig, ResolvedConfig} from '..'
 
 /**
  * 查找请求体中的Blob对象
@@ -23,7 +23,7 @@ export function findBodyFiles(body: any): Blob | undefined {
  * 合并配置
  * @param config
  */
-export function mergeConfig(...config: AjaxConfig[]): NormalizedConfig {
+export function mergeConfig(...config: AjaxConfig[]): ResolvedConfig {
     return config.reduce((prev, next) => {
         return {
             ...prev,
@@ -33,7 +33,7 @@ export function mergeConfig(...config: AjaxConfig[]): NormalizedConfig {
             headers: mergeHeaders(prev.headers, next.headers),
             signal: mergeSignal(prev.signal, next.signal)
         }
-    }) as NormalizedConfig
+    }) as ResolvedConfig
 
     function mergeUrl(prev?: string | URL, next?: string | URL): string | undefined {
         if (prev instanceof URL) {

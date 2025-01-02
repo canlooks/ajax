@@ -1,5 +1,5 @@
 import {core} from './core'
-import {Ajax, AjaxConfig, NormalizedConfig, Method, RequestInterceptor, ResponseInterceptor} from '../index'
+import {Ajax, AjaxConfig, ResolvedConfig, Method, RequestInterceptor, ResponseInterceptor} from '../index'
 import {mergeConfig} from './util'
 
 export const ajax = createInstance()
@@ -11,9 +11,9 @@ function createInstance(parentConfig: AjaxConfig = {}) {
         try {
             res = await core(config)
         } catch (e) {
-            return await enforceResponseInterceptors(null, e, config as NormalizedConfig, false)
+            return await enforceResponseInterceptors(null, e, config as ResolvedConfig, false)
         }
-        const returnValue = await enforceResponseInterceptors(res, null, config as NormalizedConfig, true)
+        const returnValue = await enforceResponseInterceptors(res, null, config as ResolvedConfig, true)
         return typeof returnValue === 'undefined' ? res : returnValue
     }) as Ajax
 
@@ -65,7 +65,7 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * 执行请求拦截器
      * @param config
      */
-    async function enforceRequestInterceptors<T extends NormalizedConfig>(config: T): Promise<T> {
+    async function enforceRequestInterceptors<T extends ResolvedConfig>(config: T): Promise<T> {
         for (const interceptor of beforeRequest) {
             const newConfig = await interceptor(config)
             if (typeof newConfig === 'object' && newConfig) {
@@ -82,7 +82,7 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * @param config
      * @param isFinalSuccess
      */
-    async function enforceResponseInterceptors(response: any, error: any, config: NormalizedConfig, isFinalSuccess: boolean) {
+    async function enforceResponseInterceptors(response: any, error: any, config: ResolvedConfig, isFinalSuccess: boolean) {
         for (const interceptor of beforeResponse) {
             try {
                 const returnValue = await interceptor(response, error, config)
