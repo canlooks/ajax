@@ -38,14 +38,14 @@ declare namespace Ajax {
         responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
+        onRequest?: RequestInterceptor
+        onResponse?: ResponseInterceptor
     }
 
     interface ResolvedConfig extends Omit<AjaxConfig, 'params' | 'headers'> {
         params: URLSearchParams
         headers: Headers
     }
-
-    type ResolvedConfig = Omit<AjaxConfig, 'params' | 'headers'> & Required<Pick<AjaxConfig, 'params' | 'headers'>>
 
     /**
      * ---------------------------------------------------------------------

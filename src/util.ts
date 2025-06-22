@@ -1,5 +1,22 @@
 import {AjaxConfig, ResolvedConfig} from '..'
 
+export function bodyTransform(body: BodyInit | null | undefined) {
+    if (typeof body === 'object') {
+        if (!(body instanceof ReadableStream)
+            && !(body instanceof Blob)
+            && !(body instanceof ArrayBuffer)
+            && !(body instanceof FormData)
+            && !(body instanceof URLSearchParams)
+        ) {
+            try {
+                return JSON.stringify(body)
+            } catch (e) {
+            }
+        }
+    }
+    return body
+}
+
 /**
  * 查找请求体中的Blob对象
  * @param body

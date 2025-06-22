@@ -4,7 +4,11 @@ import {mergeConfig} from './util'
 
 export const ajax = createInstance()
 
-function createInstance(parentConfig: AjaxConfig = {}) {
+function createInstance(
+    parentConfig: AjaxConfig = {},
+    beforeRequest = new Set<RequestInterceptor>(),
+    beforeResponse = new Set<ResponseInterceptor>()
+) {
     const ajaxInstance = (async (config: AjaxConfig) => {
         config = await enforceRequestInterceptors(mergeConfig(parentConfig, config))
         let res
@@ -24,8 +28,8 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * interceptors
      */
 
-    const beforeRequest = ajaxInstance.beforeRequest = new Set<RequestInterceptor>()
-    const beforeResponse = ajaxInstance.beforeResponse = new Set<ResponseInterceptor>()
+    ajaxInstance.beforeRequest = beforeRequest
+    ajaxInstance.beforeResponse = beforeResponse
 
     /**
      * ------------------------------------------------------------------
@@ -34,7 +38,9 @@ function createInstance(parentConfig: AjaxConfig = {}) {
 
     ajaxInstance.extend = (config?: AjaxConfig) => createInstance(config
         ? mergeConfig(parentConfig, config)
-        : parentConfig
+        : parentConfig,
+        new Set(beforeRequest),
+        new Set(beforeResponse)
     )
 
     /**
@@ -66,6 +72,8 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * @param config
      */
     async function enforceRequestInterceptors<T extends ResolvedConfig>(config: T): Promise<T> {
+        const set = new Set(beforeRequest)
+        config.onRequest && set.add(config.onRequest)
         for (const interceptor of beforeRequest) {
             const newConfig = await interceptor(config)
             if (typeof newConfig === 'object' && newConfig) {
@@ -83,6 +91,8 @@ function createInstance(parentConfig: AjaxConfig = {}) {
      * @param isFinalSuccess
      */
     async function enforceResponseInterceptors(response: any, error: any, config: ResolvedConfig, isFinalSuccess: boolean) {
+        const set = new Set(beforeResponse)
+        config.onResponse && set.add(config.onResponse)
         for (const interceptor of beforeResponse) {
             try {
                 const returnValue = await interceptor(response, error, config)

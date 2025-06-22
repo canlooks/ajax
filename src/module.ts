@@ -60,8 +60,7 @@ export function Module(a: any): any {
         return {
             [target.name]: class extends target {
                 constructor(config1: AjaxConfig = {}) {
-                    super()
-                    this.ajax = this.ajax.extend(mergeConfig(config, config1))
+                    super(mergeConfig(config, config1))
                     setInterceptors(target.prototype, this)
                 }
             }

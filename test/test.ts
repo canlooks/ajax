@@ -2,7 +2,7 @@ import {BeforeRequest, Module, Service} from '../src'
 import {AjaxConfig} from '..'
 
 @Module({
-    url: 'https://cn.bing.com'
+    url: 'https://vpp.cloud.ptswitch.com/api'
 })
 class MyService extends Service {
     @BeforeRequest()
@@ -13,13 +13,20 @@ class MyService extends Service {
     }
 }
 
+@Module({
+    url: '/uims/user',
+    timeout: 2000
+})
 class MyService1 extends MyService {
-    test() {
-        return this.get('/search')
+    login() {
+        return this.post('/login', {
+            username: 'admin',
+            password: '123456'
+        })
     }
 }
 
 const myService1 = new MyService1()
-myService1.test().then(res => {
+myService1.login().then(res => {
     console.log(30, res)
 })

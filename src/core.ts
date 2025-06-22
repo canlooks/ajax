@@ -1,6 +1,6 @@
 import {AjaxReturn, AjaxConfig} from '..'
 import {AbortError, AjaxError, NetworkError, TimeoutError} from './error'
-import {findBodyFiles} from './util'
+import {bodyTransform, findBodyFiles} from './util'
 
 export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
     let {
@@ -26,12 +26,14 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
         if (!(params instanceof URLSearchParams)) {
             params = new URLSearchParams(params)
         }
-        if (url instanceof URL) {
-            for (const [name, value] of params) {
-                url.searchParams.set(name, value)
+        if (params.size) {
+            if (url instanceof URL) {
+                for (const [name, value] of params) {
+                    url.searchParams.set(name, value)
+                }
+            } else {
+                url += `${url.includes('?') ? '&' : '?'}${params}`
             }
-        } else {
-            url += `${url.includes('?') ? '&' : '?'}${params.toString()}`
         }
     }
 
@@ -67,9 +69,11 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
      */
 
     let response: Response
+    const {body} = init
     try {
         response = await fetch(url, {
             ...init,
+            body: bodyTransform(body),
             signal: abortController?.signal,
         })
     } catch (e) {
@@ -89,7 +93,9 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
 
     try {
         if (onUploadProgress) {
-            const blob = findBodyFiles(init.body)
+            const blob = body instanceof ReadableStream
+                ? await new Response(body).blob()
+                : findBodyFiles(body)
             if (blob) {
                 const reader = blob.stream().getReader()
                 let loaded = 0
@@ -114,7 +120,6 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
             const contentLength = response.headers.get('content-length')
             if (contentLength && response.body) {
                 let data = new Uint8Array()
-
                 const writableStream = new WritableStream<Uint8Array>({
                     write(chunk) {
                         const totalLength = data.byteLength + chunk.byteLength
