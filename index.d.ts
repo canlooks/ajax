@@ -1,4 +1,4 @@
-import {Module} from './src'
+import {mergeAbortSignal, Module} from './src'
 
 declare namespace Ajax {
     /**
@@ -42,7 +42,8 @@ declare namespace Ajax {
         onResponse?: ResponseInterceptor
     }
 
-    interface ResolvedConfig extends Omit<AjaxConfig, 'params' | 'headers'> {
+    interface ResolvedConfig extends Omit<AjaxConfig, 'url' | 'params' | 'headers'> {
+        url: string
         params: URLSearchParams
         headers: Headers
     }
@@ -122,14 +123,14 @@ declare namespace Ajax {
         ajax: Ajax
         constructor(public config?: AjaxConfig)
         /** alias without body */
-        get(url: string, config?: AjaxConfig): Promise<any>
-        delete(url: string, config?: AjaxConfig): Promise<any>
-        head(url: string, config?: AjaxConfig): Promise<any>
-        options(url: string, config?: AjaxConfig): Promise<any>
+        get<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        delete<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        head<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        options<T = any>(url: string, config?: AjaxConfig): Promise<T>
         /** alias with body */
-        post(url: string, body: any, config?: AjaxConfig): Promise<any>
-        put(url: string, body: any, config?: AjaxConfig): Promise<any>
-        patch(url: string, body: any, config?: AjaxConfig): Promise<any>
+        post<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
+        put<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
+        patch<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
     }
 
     type ModuleDecorator = <T extends typeof Service>(target: T) => T
@@ -139,6 +140,21 @@ declare namespace Ajax {
     /** 方法修饰器，用于定义拦截器 */
     const BeforeRequest: MethodDecorator & (() => MethodDecorator)
     const BeforeResponse: MethodDecorator & (() => MethodDecorator)
+
+    /**
+     * ---------------------------------------------------------------------
+     * 工具函数
+     */
+
+    function mergeConfig(...config: AjaxConfig[]): ResolvedConfig
+
+    function mergeUrl(prev?: string | URL, next?: string | URL): string | undefined
+
+    function mergeParams(prev: AjaxConfig['params'], next: AjaxConfig['params']): URLSearchParams
+
+    function mergeHeaders(prev?: HeadersInit, next?: HeadersInit): Headers
+
+    function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal | null): AbortSignal | null | undefined
 }
 
 export = Ajax

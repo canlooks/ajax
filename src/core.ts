@@ -81,7 +81,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
         throw e instanceof AjaxError ? e : new NetworkError(void 0, {config})
     }
     if (!response.ok) {
-        throw new NetworkError(`request failed with status ${response.status}`, {config})
+        throw new NetworkError(`request failed with status ${response.status}`, {config, response})
     }
 
     let result: any
@@ -142,7 +142,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
         }
     } catch (e) {
         console.error(e)
-        throw e instanceof AjaxError ? e : new AjaxError(void 0, {config})
+        throw e instanceof AjaxError ? e : new AjaxError(void 0, {config, response})
     }
 
     /**
@@ -164,7 +164,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
             case void 0:
                 break
             default:
-                throw new AjaxError(`"${responseType}" is not supported when using "onDownloadProgress"`, {config})
+                throw new AjaxError(`"${responseType}" is not supported when using "onDownloadProgress"`, {config, response})
         }
     } else {
         try {
@@ -186,7 +186,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
             }
         } catch (e) {
             console.error(e)
-            throw e instanceof AjaxError ? e : new AjaxError(void 0, {config})
+            throw e instanceof AjaxError ? e : new AjaxError(void 0, {config, response})
         }
     }
 

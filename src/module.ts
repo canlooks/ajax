@@ -35,15 +35,15 @@ export class Service {
      * alias with body
      */
 
-    post(url: string, body: any, config: AjaxConfig = {}) {
+    post(url: string, body?: any, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, body, method: 'POST'}))
     }
 
-    put(url: string, body: any, config: AjaxConfig = {}) {
+    put(url: string, body?: any, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, body, method: 'PUT'}))
     }
 
-    patch(url: string, body: any, config: AjaxConfig = {}) {
+    patch(url: string, body?: any, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, body, method: 'PATCH'}))
     }
 }
