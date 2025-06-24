@@ -102,7 +102,6 @@ function createInstance(
                 error = null
                 isFinalSuccess = true
             } catch (e) {
-                response = null
                 error = e
                 isFinalSuccess = false
             }
