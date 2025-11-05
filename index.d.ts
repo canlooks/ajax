@@ -104,15 +104,27 @@ declare namespace Ajax {
      * 错误
      */
 
-    class AjaxError extends Error {
-        type: 'ajaxError' | 'networkError' | 'abortError' | 'timeoutError'
+    type AjaxErrorCause = {
+        config: AjaxConfig
+        response?: Response
     }
 
-    class NetworkError extends AjaxError {}
+    class AjaxError extends Error {
+        type: 'ajaxError' | 'networkError' | 'abortError' | 'timeoutError'
+        cause?: AjaxErrorCause
+    }
 
-    class AbortError extends AjaxError {}
+    class NetworkError extends AjaxError {
+        cause?: AjaxErrorCause
+    }
 
-    class TimeoutError extends AjaxError {}
+    class AbortError extends AjaxError {
+        cause?: AjaxErrorCause
+    }
+
+    class TimeoutError extends AjaxError {
+        cause?: AjaxErrorCause
+    }
 
     /**
      * ---------------------------------------------------------------------

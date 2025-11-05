@@ -1,7 +1,9 @@
+import {AjaxErrorCause} from '../index'
+
 export const prefix = '[@canlooks/ajax] '
 
 export class AjaxError extends Error {
-    constructor(message = 'Ajax Error', cause?: any) {
+    constructor(message = 'Ajax Error', public override cause?: AjaxErrorCause) {
         super(prefix + message, {cause})
     }
 
@@ -9,7 +11,7 @@ export class AjaxError extends Error {
 }
 
 export class NetworkError extends AjaxError {
-    constructor(message = 'Network Error', cause?: any) {
+    constructor(message = 'Network Error', public override cause?: AjaxErrorCause) {
         super(message, cause)
     }
 
@@ -17,7 +19,7 @@ export class NetworkError extends AjaxError {
 }
 
 export class AbortError extends AjaxError {
-    constructor(message = 'Request was aborted', cause?: any) {
+    constructor(message = 'Request was aborted', public override cause?: AjaxErrorCause) {
         super(message, cause)
     }
 
@@ -25,7 +27,7 @@ export class AbortError extends AjaxError {
 }
 
 export class TimeoutError extends AjaxError {
-    constructor(message = 'Request timeout', cause?: any) {
+    constructor(message = 'Request timeout', public override cause?: AjaxErrorCause) {
         super(message, cause)
     }
 
