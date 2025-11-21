@@ -2,13 +2,12 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "Node10",
+    "moduleResolution": "node",
     "skipLibCheck": true,
     "importHelpers": true,
     "esModuleInterop": true,
     "strict": true,
     "noUnusedLocals": true,
-    "noImplicitReturns": true,
     "noImplicitOverride": true
   },
   "include": [

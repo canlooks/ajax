@@ -1,8 +1,8 @@
-import {AjaxReturn, AjaxConfig} from '..'
+import {AjaxReturn, ResolvedConfig} from '..'
 import {AbortError, AjaxError, NetworkError, TimeoutError} from './error'
-import {bodyTransform, findBodyFiles} from './util'
+import {bodyTransform, catchCommonError, findBodyFiles} from './util'
 
-export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
+export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
     let {
         url,
         params,
@@ -19,22 +19,11 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
      */
 
     if (!url) {
-        throw new AjaxError(`"url" is required`, {config})
+        throw new TypeError(`"url" is required`)
     }
 
     if (params) {
-        if (!(params instanceof URLSearchParams)) {
-            params = new URLSearchParams(params)
-        }
-        if (params.size) {
-            if (url instanceof URL) {
-                for (const [name, value] of params) {
-                    url.searchParams.set(name, value)
-                }
-            } else {
-                url += `${url.includes('?') ? '&' : '?'}${params}`
-            }
-        }
+        url += `${url.includes('?') ? '&' : '?'}${params}`
     }
 
     /**
@@ -77,8 +66,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
             signal: abortController?.signal,
         })
     } catch (e) {
-        console.error(e)
-        throw e instanceof AjaxError ? e : new NetworkError(void 0, {config})
+        throw catchCommonError(e, message => new NetworkError(message, {config, response}))
     }
     if (!response.ok) {
         throw new NetworkError(`request failed with status ${response.status}`, {config, response})
@@ -141,8 +129,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
             }
         }
     } catch (e) {
-        console.error(e)
-        throw e instanceof AjaxError ? e : new AjaxError(void 0, {config, response})
+        throw catchCommonError(e, message => new AjaxError(message, {config, response}))
     }
 
     /**
@@ -164,7 +151,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
             case void 0:
                 break
             default:
-                throw new AjaxError(`"${responseType}" is not supported when using "onDownloadProgress"`, {config, response})
+                throw new AjaxError(`"${responseType}" is not supported when "onDownloadProgress" specified`, {config, response})
         }
     } else {
         try {
@@ -185,8 +172,7 @@ export async function core<T = any>(config: AjaxConfig): AjaxReturn<T> {
                     result = await response.formData()
             }
         } catch (e) {
-            console.error(e)
-            throw e instanceof AjaxError ? e : new AjaxError(void 0, {config, response})
+            throw catchCommonError(e, message => new AjaxError(message, {config, response}))
         }
     }
 

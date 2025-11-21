@@ -13,7 +13,7 @@ function createInstance(
         config = await enforceRequestInterceptors(mergeConfig(parentConfig, config))
         let res
         try {
-            res = await core(config)
+            res = await core(config as ResolvedConfig)
         } catch (e) {
             return await enforceResponseInterceptors(null, e, config as ResolvedConfig, false)
         }

@@ -43,7 +43,7 @@ declare namespace Ajax {
     }
 
     interface ResolvedConfig extends Omit<AjaxConfig, 'url' | 'params' | 'headers'> {
-        url: string
+        url?: string
         params: URLSearchParams
         headers: Headers
     }
@@ -96,7 +96,7 @@ declare namespace Ajax {
     type AjaxResponse<T> = {
         result: T
         response: Response
-        config: AjaxConfig
+        config: ResolvedConfig
     }
 
     /**
@@ -105,25 +105,25 @@ declare namespace Ajax {
      */
 
     type AjaxErrorCause = {
-        config: AjaxConfig
+        config: ResolvedConfig
         response?: Response
     }
 
     class AjaxError extends Error {
         type: 'ajaxError' | 'networkError' | 'abortError' | 'timeoutError'
-        cause?: AjaxErrorCause
+        cause: AjaxErrorCause
     }
 
     class NetworkError extends AjaxError {
-        cause?: AjaxErrorCause
+        cause: AjaxErrorCause
     }
 
     class AbortError extends AjaxError {
-        cause?: AjaxErrorCause
+        cause: AjaxErrorCause
     }
 
     class TimeoutError extends AjaxError {
-        cause?: AjaxErrorCause
+        cause: AjaxErrorCause
     }
 
     /**
@@ -155,7 +155,7 @@ declare namespace Ajax {
 
     /**
      * ---------------------------------------------------------------------
-     * 工具函数
+     * 内部工具函数
      */
 
     function mergeConfig(...config: AjaxConfig[]): ResolvedConfig
@@ -167,6 +167,8 @@ declare namespace Ajax {
     function mergeHeaders(prev?: HeadersInit, next?: HeadersInit): Headers
 
     function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal | null): AbortSignal | null | undefined
+
+    function catchCommonError(e: any, newError: (message?: string) => any): any
 }
 
 export = Ajax

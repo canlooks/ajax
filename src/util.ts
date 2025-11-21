@@ -1,4 +1,5 @@
 import {AjaxConfig, ResolvedConfig} from '..'
+import {AjaxError} from './error'
 
 export function bodyTransform(body: BodyInit | null | undefined) {
     if (typeof body === 'object') {
@@ -118,4 +119,14 @@ export function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal |
     const abortController = new AbortController()
     prev.onabort = next.onabort = () => abortController.abort()
     return abortController.signal
+}
+
+export function catchCommonError(e: any, newError: (message?: string) => any) {
+    return e instanceof AjaxError
+        ? e
+        : newError(
+            e instanceof Error ? e.message
+                : 'toString' in e ? e.toString()
+                    : void 0
+        )
 }
