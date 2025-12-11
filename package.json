@@ -1,6 +1,6 @@
 {
   "name": "@canlooks/ajax",
-  "version": "4.0.13",
+  "version": "4.0.14",
   "description": "A private tool",
   "author": "C.CanLiang <canlooks@gmail.com>",
   "license": "MIT",
@@ -24,13 +24,13 @@
     },
     "./react": {
       "types": "./react/index.d.ts",
-      "import": "./react/index.js",
-      "require": "./react/index.cjs"
+      "import": "./react/index.mjs",
+      "require": "./react/index.js"
     },
     "./vue": {
       "types": "./vue/index.d.ts",
-      "import": "./vue/index.js",
-      "require": "./vue/index.cjs"
+      "import": "./vue/index.mjs",
+      "require": "./vue/index.js"
     }
   },
   "publishConfig": {
