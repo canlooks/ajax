@@ -22,7 +22,7 @@ export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
         throw new TypeError(`"url" is required`)
     }
 
-    if (params) {
+    if (params.size) {
         url += `${url.includes('?') ? '&' : '?'}${params}`
     }
 
