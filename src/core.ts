@@ -9,7 +9,7 @@ export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
         onUploadProgress,
         onDownloadProgress,
         timeout = !onUploadProgress && !onDownloadProgress ? 60_000 : void 0,
-        responseType = onDownloadProgress ? void 0 : 'json',
+        responseType = onDownloadProgress ? 'none' : 'json',
         ...init
     } = config
 
@@ -148,10 +148,11 @@ export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
                 const blob = new Blob([result])
                 result = blob
                 break
+            case 'none':
             case void 0:
                 break
             default:
-                throw new AjaxError(`"${responseType}" is not supported when "onDownloadProgress" specified`, {config, response})
+                throw new AjaxError(`responseType: "${responseType}" is not supported when "onDownloadProgress" specified`, {config, response})
         }
     } else {
         try {

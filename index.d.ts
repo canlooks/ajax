@@ -33,9 +33,10 @@ declare namespace Ajax {
         /** 默认`60秒`; `0`表示无超时 */
         timeout?: number
         /**
-         * 若设置了{@link onDownloadProgress}，默认为`undefined`，否则默认为`json`
+         * 自动将`response`对象进行转换，若设为`none`，则不会转换，{@link AjaxResponse}中的`result`将为`undefined`.
+         * 若设置了{@link onDownloadProgress}，默认为`none`，否则默认为`json`
          */
-        responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'
+        responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text' | 'none'
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
         onRequest?: RequestInterceptor
