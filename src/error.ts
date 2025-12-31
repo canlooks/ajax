@@ -2,9 +2,14 @@ import {AjaxErrorCause} from '../index'
 
 export const prefix = '[@canlooks/ajax] '
 
+export const debug = typeof process !== 'undefined' && process.env.CANLOOKS_AJAX_DEBUG === 'on'
+
 export class AjaxError extends Error {
     constructor(message = 'Ajax Error', public override cause: AjaxErrorCause) {
         super(prefix + message, {cause})
+        if (debug) {
+            console.error('[@canlooks/ajax] Input Config: ', JSON.stringify(cause.config, null, 2))
+        }
     }
 
     type = 'ajaxError'
