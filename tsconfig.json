@@ -3,7 +3,6 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "node",
-    "skipLibCheck": true,
     "importHelpers": true,
     "esModuleInterop": true,
     "strict": true,
@@ -12,5 +11,8 @@
   },
   "include": [
     "src/**/*"
-  ]
+  ],
+  "tsc-alias": {
+    "resolveFullPaths": true
+  }
 }

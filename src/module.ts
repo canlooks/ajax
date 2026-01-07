@@ -1,12 +1,14 @@
-import {Ajax, AjaxConfig} from '..'
+import {AjaxConfig, InterceptorDecorator, RequestInterceptorType, ResponseInterceptorType} from '../index'
 import {ajax} from './ajaxInstance'
-import {mergeConfig} from './util'
+import {mergeConfig} from './utility'
 
 export class Service {
-    ajax!: Ajax
+    static config: AjaxConfig = {}
 
-    constructor(public config?: AjaxConfig) {
-        this.ajax = ajax.extend(config)
+    static ajax = ajax.create(this.config)
+
+    static get resolvedConfig() {
+        return this.ajax.config
     }
 
     /**
@@ -14,19 +16,19 @@ export class Service {
      * alias without body
      */
 
-    get(url: string, config: AjaxConfig = {}) {
+    static get(url: string, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, method: 'GET'}))
     }
 
-    delete(url: string, config: AjaxConfig = {}) {
+    static delete(url: string, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, method: 'DELETE'}))
     }
 
-    head(url: string, config: AjaxConfig = {}) {
+    static head(url: string, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, method: 'HEAD'}))
     }
 
-    options(url: string, config: AjaxConfig = {}) {
+    static options(url: string, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, method: 'OPTIONS'}))
     }
 
@@ -35,78 +37,68 @@ export class Service {
      * alias with body
      */
 
-    post(url: string, body?: any, config: AjaxConfig = {}) {
+    static post(url: string, body?: any, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, body, method: 'POST'}))
     }
 
-    put(url: string, body?: any, config: AjaxConfig = {}) {
+    static put(url: string, body?: any, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, body, method: 'PUT'}))
     }
 
-    patch(url: string, body?: any, config: AjaxConfig = {}) {
+    static patch(url: string, body?: any, config: AjaxConfig = {}) {
         return this.ajax(mergeConfig(config, {url, body, method: 'PATCH'}))
     }
 }
 
-/**
- * ------------------------------------------------------------------
- * 类修饰器
- */
 
-export function Module<T extends typeof Service>(target: T): T
-export function Module(config?: AjaxConfig): <T extends typeof Service>(target: T) => T
-export function Module(a: any): any {
-    const fn = (config: AjaxConfig = {}) => (target: typeof Service) => {
-        return {
-            [target.name]: class extends target {
-                constructor(config1: AjaxConfig = {}) {
-                    super(mergeConfig(config, config1))
-                    setInterceptors(target.prototype, this)
-                }
+export function Config(config: AjaxConfig) {
+    return <T extends typeof Service>(target: T) => {
+        target.config = config
+        target.ajax = target.ajax.create(config)
+
+        const requestInterceptors = target_requestInterceptors.get(target)
+        if (requestInterceptors) {
+            for (const interceptor of requestInterceptors) {
+                target.ajax.requestInterceptor.add(interceptor.bind(target))
             }
-        }[target.name]
-    }
-    return typeof a === 'function' ? fn()(a) : fn(a)
-}
+        }
 
-/**
- * ------------------------------------------------------------------
- * 方法修饰器
- */
-
-const prototype_beforeRequestPropertySet = new WeakMap<object, Set<PropertyKey>>()
-const prototype_beforeResponsePropertySet = new WeakMap<object, Set<PropertyKey>>()
-
-export function BeforeRequest(a?: any, b?: any, c?: any): any {
-    const fn = (prototype: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<any>) => {
-        defineMethodDecorator(prototype, propertyKey, prototype_beforeRequestPropertySet)
-    }
-    return c ? fn(a, b, c) : fn
-}
-
-export function BeforeResponse(a?: any, b?: any, c?: any): any {
-    const fn = (prototype: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<any>) => {
-        defineMethodDecorator(prototype, propertyKey, prototype_beforeResponsePropertySet)
-    }
-    return c ? fn(a, b, c) : fn
-}
-
-function defineMethodDecorator(prototype: Object, propertyKey: PropertyKey, map: WeakMap<object, Set<PropertyKey>>) {
-    const propertySet = map.get(prototype) || new Set()
-    propertySet.add(propertyKey)
-    map.set(prototype, propertySet)
-}
-
-function setInterceptors(prototype: Object, context: Service) {
-    const fn = (type: 'beforeRequest' | 'beforeResponse') => {
-        const map = type === 'beforeRequest' ? prototype_beforeRequestPropertySet : prototype_beforeResponsePropertySet
-        const propertySet = map.get(prototype)
-        if (propertySet) {
-            for (const property of propertySet) {
-                context.ajax[type].add((context[property as keyof Service] as any).bind(context))
+        const responseInterceptors = target_responseInterceptors.get(target)
+        if (responseInterceptors) {
+            for (const interceptor of responseInterceptors) {
+                target.ajax.responseInterceptor.add(interceptor.bind(target))
             }
         }
     }
-    fn('beforeRequest')
-    fn('beforeResponse')
+}
+
+const target_requestInterceptors = new WeakMap<object, Set<RequestInterceptorType>>()
+
+export function RequestInterceptor<T>(target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<T>): void
+export function RequestInterceptor(): InterceptorDecorator
+export function RequestInterceptor(a?: any, b?: any, c?: any) {
+    const fn = () => (target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<any>) => {
+        setInternalMap(target_requestInterceptors, target, descriptor.value)
+    }
+    return c ? fn()(a, b, c) : fn()
+}
+
+const target_responseInterceptors = new WeakMap<object, Set<RequestInterceptorType>>()
+
+export function ResponseInterceptor<T>(target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<T>): void
+export function ResponseInterceptor(): InterceptorDecorator
+export function ResponseInterceptor(a?: any, b?: any, c?: any) {
+    const fn = () => (target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<any>) => {
+        setInternalMap(target_responseInterceptors, target, descriptor.value)
+    }
+    return c ? fn()(a, b, c) : fn()
+}
+
+
+function setInternalMap<T extends RequestInterceptorType | ResponseInterceptorType>(map: WeakMap<object, Set<T>>, target: Object, value: T) {
+    if (typeof value === 'function') {
+        const interceptors = map.get(target) || new Set()
+        interceptors.add(value)
+        map.set(target, interceptors)
+    }
 }

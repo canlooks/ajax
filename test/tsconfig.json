@@ -5,11 +5,9 @@
     "jsx": "react",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "noUnusedLocals": false,
-    "noImplicitReturns": false,
-    "noImplicitOverride": false
+    "noUnusedLocals": false
   },
   "include": [
-    "./**/*"
+    "**/*"
   ]
 }

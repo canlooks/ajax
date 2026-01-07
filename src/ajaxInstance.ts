@@ -1,13 +1,13 @@
 import {core} from './core'
-import {Ajax, AjaxConfig, ResolvedConfig, Method, RequestInterceptor, ResponseInterceptor} from '../index'
-import {mergeConfig} from './util'
+import {Ajax, AjaxConfig, ResolvedConfig, Method, RequestInterceptorType, ResponseInterceptorType} from '../index'
+import {mergeConfig} from './utility'
 
 export const ajax = createInstance()
 
 function createInstance(
     parentConfig: AjaxConfig = {},
-    beforeRequest = new Set<RequestInterceptor>(),
-    beforeResponse = new Set<ResponseInterceptor>()
+    requestInterceptor = new Set<RequestInterceptorType>(),
+    responseInterceptor = new Set<ResponseInterceptorType>()
 ) {
     const ajaxInstance = (async (config: AjaxConfig) => {
         config = await enforceRequestInterceptors(mergeConfig(parentConfig, config))
@@ -28,19 +28,18 @@ function createInstance(
      * interceptors
      */
 
-    ajaxInstance.beforeRequest = beforeRequest
-    ajaxInstance.beforeResponse = beforeResponse
+    ajaxInstance.requestInterceptor = requestInterceptor
+    ajaxInstance.responseInterceptor = responseInterceptor
 
     /**
      * ------------------------------------------------------------------
      * sub instance
      */
 
-    ajaxInstance.extend = (config?: AjaxConfig) => createInstance(config
-        ? mergeConfig(parentConfig, config)
-        : parentConfig,
-        new Set(beforeRequest),
-        new Set(beforeResponse)
+    ajaxInstance.create = (config?: AjaxConfig) => createInstance(
+        mergeConfig(parentConfig, config),
+        new Set(requestInterceptor),
+        new Set(responseInterceptor)
     )
 
     /**
@@ -72,9 +71,9 @@ function createInstance(
      * @param config
      */
     async function enforceRequestInterceptors<T extends ResolvedConfig>(config: T): Promise<T> {
-        const set = new Set(beforeRequest)
+        const set = new Set(requestInterceptor)
         config.onRequest && set.add(config.onRequest)
-        for (const interceptor of beforeRequest) {
+        for (const interceptor of requestInterceptor) {
             const newConfig = await interceptor(config)
             if (typeof newConfig === 'object' && newConfig) {
                 config = newConfig
@@ -91,9 +90,9 @@ function createInstance(
      * @param isFinalSuccess
      */
     async function enforceResponseInterceptors(response: any, error: any, config: ResolvedConfig, isFinalSuccess: boolean) {
-        const set = new Set(beforeResponse)
+        const set = new Set(responseInterceptor)
         config.onResponse && set.add(config.onResponse)
-        for (const interceptor of beforeResponse) {
+        for (const interceptor of responseInterceptor) {
             try {
                 const returnValue = await interceptor(response, error, config)
                 if (typeof returnValue !== 'undefined') {

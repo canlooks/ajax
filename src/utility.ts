@@ -41,15 +41,15 @@ export function findBodyFiles(body: any): Blob | undefined {
  * 合并配置
  * @param config
  */
-export function mergeConfig(...config: AjaxConfig[]): ResolvedConfig {
+export function mergeConfig(...config: (AjaxConfig | undefined)[]): ResolvedConfig {
     return config.reduce((prev, next) => {
         return {
             ...prev,
             ...next,
-            url: mergeUrl(prev.url, next.url),
-            params: mergeParams(prev.params, next.params),
-            headers: mergeHeaders(prev.headers, next.headers),
-            signal: mergeAbortSignal(prev.signal, next.signal)
+            url: mergeUrl(prev?.url, next?.url),
+            params: mergeParams(prev?.params, next?.params),
+            headers: mergeHeaders(prev?.headers, next?.headers),
+            signal: mergeAbortSignal(prev?.signal, next?.signal)
         }
     }) as ResolvedConfig
 }
@@ -67,46 +67,41 @@ export function mergeUrl(prev?: string | URL, next?: string | URL): string | und
     if (!next) {
         return prev
     }
+    // next开头带协议，则抛弃prev，直接使用next
     if (/^([a-z]+:)?\/\//i.test(next)) {
         return next
     }
+    // prev去掉末尾的'/'，next去掉开头的'/'
     prev = prev.replace(/\/+$/, '')
     next = next.replace(/^\/+/, '')
+
     return `${prev}/${next}`
 }
 
 export function mergeParams(prev: AjaxConfig['params'], next: AjaxConfig['params']): URLSearchParams {
-    const params = new URLSearchParams(prev)
-    if (!(next instanceof URLSearchParams)) {
-        next = new URLSearchParams(next)
-    }
-    if (!prev) {
-        return next
-    }
-    if (!next) {
-        return params
-    }
-    for (const [name, value] of next) {
-        params.set(name, value)
-    }
-    return params
+    return mergeParamsOrHeaders(URLSearchParams, prev, next)
 }
 
 export function mergeHeaders(prev?: HeadersInit, next?: HeadersInit): Headers {
-    const headers = new Headers(prev)
-    if (!(next instanceof Headers)) {
-        next = new Headers(next)
+    return mergeParamsOrHeaders(Headers, prev, next)
+}
+
+function mergeParamsOrHeaders(objectClass: any, prev?: any, next?: any) {
+    // prev无论如何都要new，避免直接修改prev
+    const obj = new objectClass(prev)
+    if (!next) {
+        return obj
+    }
+    if (!(next instanceof objectClass)) {
+        next = new objectClass(next)
     }
     if (!prev) {
         return next
     }
-    if (!next) {
-        return headers
-    }
     for (const [name, value] of next) {
-        headers.set(name, value)
+        obj.set(name, value)
     }
-    return headers
+    return obj
 }
 
 export function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal | null): AbortSignal | null | undefined {

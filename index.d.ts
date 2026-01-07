@@ -1,5 +1,3 @@
-import {mergeAbortSignal, Module} from './src'
-
 declare namespace Ajax {
     /**
      * ---------------------------------------------------------------------
@@ -38,8 +36,8 @@ declare namespace Ajax {
         responseType?: 'arrayBuffer' | 'blob' | 'formData' | 'json' | 'text'
         onUploadProgress?: ProgressCallback
         onDownloadProgress?: ProgressCallback
-        onRequest?: RequestInterceptor
-        onResponse?: ResponseInterceptor
+        onRequest?: RequestInterceptorType
+        onResponse?: ResponseInterceptorType
     }
 
     interface ResolvedConfig extends Omit<AjaxConfig, 'url' | 'params' | 'headers'> {
@@ -69,21 +67,20 @@ declare namespace Ajax {
         post: AliasWithBody
         put: AliasWithBody
         patch: AliasWithBody
-        /** interceptor */
     }
 
-    type RequestInterceptor = <T extends ResolvedConfig>(config: T) => T | Promise<T>
-    type ResponseInterceptor = (response: any, error: any, config: ResolvedConfig) => any
+    type RequestInterceptorType = <T extends ResolvedConfig>(config: T) => T | Promise<T>
+    type ResponseInterceptorType = (response: any, error: any, config: ResolvedConfig) => any
 
     type InterceptorsDefinition = {
-        beforeRequest: Set<RequestInterceptor>
-        beforeResponse: Set<ResponseInterceptor>
+        requestInterceptor: Set<RequestInterceptorType>
+        responseInterceptor: Set<ResponseInterceptorType>
     }
 
     interface Ajax extends AjaxAlias, InterceptorsDefinition {
         <T = any>(config?: AjaxConfig): AjaxReturn<T>
         config: AjaxConfig
-        extend(config?: AjaxConfig): Ajax
+        create(config?: AjaxConfig): Ajax
     }
 
     const ajax: Ajax
@@ -132,26 +129,42 @@ declare namespace Ajax {
      */
 
     class Service {
-        ajax: Ajax
-        constructor(public config?: AjaxConfig)
+        /** ajax方法实例 */
+        static ajax: Ajax
+        /** 当前的局部配置 */
+        static config: AjaxConfig
+        /** 与父类的配置合并后的完整配置 */
+        static resolvedConfig: ResolvedConfig
+
         /** alias without body */
-        get<T = any>(url: string, config?: AjaxConfig): Promise<T>
-        delete<T = any>(url: string, config?: AjaxConfig): Promise<T>
-        head<T = any>(url: string, config?: AjaxConfig): Promise<T>
-        options<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        static get<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        static delete<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        static head<T = any>(url: string, config?: AjaxConfig): Promise<T>
+        static options<T = any>(url: string, config?: AjaxConfig): Promise<T>
+
         /** alias with body */
-        post<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
-        put<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
-        patch<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
+        static post<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
+        static put<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
+        static patch<T = any>(url: string, body?: any, config?: AjaxConfig): Promise<T>
     }
 
-    type ModuleDecorator = <T extends typeof Service>(target: T) => T
+    /**
+     * 类修饰器，继承{@link Service}的类使用该修饰器可以扩展`config`
+     * @param config ajax配置
+     */
+    function Config(config: AjaxConfig): <T extends typeof Service>(target: T) => void
 
-    /** 类修饰器 */
-    const Module: ModuleDecorator & ((config?: AjaxConfig) => ModuleDecorator)
-    /** 方法修饰器，用于定义拦截器 */
-    const BeforeRequest: MethodDecorator & (() => MethodDecorator)
-    const BeforeResponse: MethodDecorator & (() => MethodDecorator)
+    type InterceptorDecorator = (target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<unknown>) => void
+
+    /**
+     * 方法修饰器，定义请求拦截器
+     */
+    const RequestInterceptor: MethodDecorator & (() => MethodDecorator)
+
+    /**
+     * 方法修饰器，定义响应拦截器
+     */
+    const ResponseInterceptor: MethodDecorator & (() => MethodDecorator)
 
     /**
      * ---------------------------------------------------------------------

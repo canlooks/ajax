@@ -1,6 +1,6 @@
 import {AjaxReturn, ResolvedConfig} from '..'
 import {AbortError, AjaxError, NetworkError, TimeoutError} from './error'
-import {bodyTransform, catchCommonError, findBodyFiles} from './util'
+import {bodyTransform, catchCommonError, findBodyFiles} from './utility'
 
 export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
     let {
