@@ -1,17 +1,13 @@
 {
   "name": "@canlooks/ajax",
-  "version": "5.0.0",
-  "description": "A private tool",
+  "version": "5.0.1",
+  "description": "A tool",
   "author": "C.CanLiang <canlooks@gmail.com>",
   "license": "MIT",
   "keywords": [
     "ajax",
-    "request",
-    "xhr",
-    "XMLHttpRequest",
-    "modularization",
-    "react",
-    "vue"
+    "fetch",
+    "modularization"
   ],
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
