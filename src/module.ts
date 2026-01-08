@@ -74,10 +74,10 @@ export function Config(config: AjaxConfig) {
 
 const target_requestInterceptors = new WeakMap<object, Set<RequestInterceptorType>>()
 
-export function RequestInterceptor<T>(target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<T>): void
+export function RequestInterceptor(target: Object, propertyKey: PropertyKey, descriptor: PropertyDescriptor): void
 export function RequestInterceptor(): InterceptorDecorator
 export function RequestInterceptor(a?: any, b?: any, c?: any) {
-    const fn = () => (target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<any>) => {
+    const fn = () => (target: Object, propertyKey: PropertyKey, descriptor: PropertyDescriptor) => {
         setInternalMap(target_requestInterceptors, target, descriptor.value)
     }
     return c ? fn()(a, b, c) : fn()
@@ -85,10 +85,10 @@ export function RequestInterceptor(a?: any, b?: any, c?: any) {
 
 const target_responseInterceptors = new WeakMap<object, Set<RequestInterceptorType>>()
 
-export function ResponseInterceptor<T>(target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<T>): void
+export function ResponseInterceptor(target: Object, propertyKey: PropertyKey, descriptor: PropertyDescriptor): void
 export function ResponseInterceptor(): InterceptorDecorator
 export function ResponseInterceptor(a?: any, b?: any, c?: any) {
-    const fn = () => (target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<any>) => {
+    const fn = () => (target: Object, propertyKey: PropertyKey, descriptor: PropertyDescriptor) => {
         setInternalMap(target_responseInterceptors, target, descriptor.value)
     }
     return c ? fn()(a, b, c) : fn()

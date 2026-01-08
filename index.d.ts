@@ -155,7 +155,7 @@ declare namespace Ajax {
      */
     function Config(config: AjaxConfig): <T extends typeof Service>(target: T) => void
 
-    type InterceptorDecorator = (target: Object, propertyKey: PropertyKey, descriptor: TypedPropertyDescriptor<unknown>) => void
+    type InterceptorDecorator = (target: Object, propertyKey: PropertyKey, descriptor: PropertyDescriptor) => void
 
     /**
      * 方法修饰器，定义请求拦截器
