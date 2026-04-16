@@ -22,20 +22,32 @@ export function bodyTransform(body: BodyInit | null | undefined) {
  * 查找请求体中的Blob对象
  * @param body
  */
-export function findBodyFiles(body: any): Blob[] {
+export async function findBodyBlobs(body: any) {
     const blobs: Blob[] = []
-    const recurse = (obj: any) => {
+    const recurse = async (obj: any) => {
+        if (body instanceof ReadableStream) {
+            blobs.push(await new Response(body).blob())
+            return
+        }
         if (obj instanceof Blob) {
             blobs.push(obj)
             return
         }
+        if (obj instanceof ArrayBuffer) {
+            blobs.push(new Blob([obj]))
+            return
+        }
+        if (Array.isArray(obj)) {
+            await Promise.all(obj.map(recurse))
+            return
+        }
         if (typeof obj === 'object' && obj !== null) {
-            for (const k in obj) {
-                recurse(obj[k])
-            }
+            obj instanceof FormData
+                ? await recurse([...obj.values()])
+                : await recurse(Object.values(obj))
         }
     }
-    recurse(body)
+    await recurse(body)
     return blobs
 }
 

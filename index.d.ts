@@ -172,6 +172,8 @@ declare namespace Ajax {
      * 内部工具函数
      */
 
+    function findBodyBlobs(body: any): Promise<Blob[]>
+
     function mergeConfig(...config: AjaxConfig[]): ResolvedConfig
 
     function mergeUrl(prev?: string | URL, next?: string | URL): string | undefined

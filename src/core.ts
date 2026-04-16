@@ -1,6 +1,6 @@
 import {AjaxReturn, ResolvedConfig} from '..'
 import {AbortError, AjaxError, NetworkError, TimeoutError} from './error'
-import {bodyTransform, catchCommonError, findBodyFiles} from './utility'
+import {bodyTransform, catchCommonError, findBodyBlobs} from './utility'
 
 export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
     let {
@@ -81,9 +81,7 @@ export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
 
     try {
         if (onUploadProgress) {
-            const blobs = body instanceof ReadableStream
-                ? [await new Response(body).blob()]
-                : findBodyFiles(body)
+            const blobs = await findBodyBlobs(body)
             if (blobs.length) {
                 const total = blobs.reduce((prev, curr) => prev + curr.size, 0)
                 let loaded = 0
