@@ -63,7 +63,7 @@ export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
         response = await fetch(url, {
             ...init,
             body: bodyTransform(body),
-            signal: abortController?.signal,
+            signal: abortController?.signal
         })
     } catch (e) {
         throw catchCommonError(e, message => new NetworkError(message, {config, response}))
@@ -81,26 +81,31 @@ export async function core<T = any>(config: ResolvedConfig): AjaxReturn<T> {
 
     try {
         if (onUploadProgress) {
-            const blob = body instanceof ReadableStream
-                ? await new Response(body).blob()
+            const blobs = body instanceof ReadableStream
+                ? [await new Response(body).blob()]
                 : findBodyFiles(body)
-            if (blob) {
-                const reader = blob.stream().getReader()
+            if (blobs.length) {
+                const total = blobs.reduce((prev, curr) => prev + curr.size, 0)
                 let loaded = 0
-                const total = blob.size
-                const read = async () => {
-                    const {done, value} = await reader.read()
-                    if (done) {
-                        return
-                    }
-                    onUploadProgress({
-                        loaded: loaded += value.byteLength,
-                        total,
-                        chunk: value
+
+                await Promise.all(
+                    blobs.map(async blob => {
+                        const reader = blob.stream().getReader()
+                        const read = async () => {
+                            const {done, value} = await reader.read()
+                            if (done) {
+                                return
+                            }
+                            onUploadProgress({
+                                loaded: loaded += value.byteLength,
+                                total,
+                                chunk: value
+                            })
+                            await read()
+                        }
+                        await read()
                     })
-                    await read()
-                }
-                await read()
+                )
             }
         }
 

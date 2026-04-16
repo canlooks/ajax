@@ -22,19 +22,21 @@ export function bodyTransform(body: BodyInit | null | undefined) {
  * 查找请求体中的Blob对象
  * @param body
  */
-export function findBodyFiles(body: any): Blob | undefined {
-    if (body instanceof Blob) {
-        return body
-    }
-    if (typeof body === 'object' && body !== null) {
-        for (const k in body) {
-            const file = findBodyFiles(body[k])
-            if (file) {
-                return file
+export function findBodyFiles(body: any): Blob[] {
+    const blobs: Blob[] = []
+    const recurse = (obj: any) => {
+        if (obj instanceof Blob) {
+            blobs.push(obj)
+            return
+        }
+        if (typeof obj === 'object' && obj !== null) {
+            for (const k in obj) {
+                recurse(obj[k])
             }
         }
     }
-    return
+    recurse(body)
+    return blobs
 }
 
 /**
