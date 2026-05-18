@@ -1,13 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "rootDir": "src",
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "importHelpers": true,
     "esModuleInterop": true,
     "strict": true,
     "noUnusedLocals": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "src/**/*"
