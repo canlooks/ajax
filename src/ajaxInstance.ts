@@ -73,7 +73,7 @@ function createInstance(
     async function enforceRequestInterceptors<T extends ResolvedConfig>(config: T): Promise<T> {
         const set = new Set(requestInterceptor)
         config.onRequest && set.add(config.onRequest)
-        for (const interceptor of requestInterceptor) {
+        for (const interceptor of set) {
             const newConfig = await interceptor(config)
             if (typeof newConfig === 'object' && newConfig) {
                 config = newConfig
@@ -92,7 +92,7 @@ function createInstance(
     async function enforceResponseInterceptors(response: any, error: any, config: ResolvedConfig, isFinalSuccess: boolean) {
         const set = new Set(responseInterceptor)
         config.onResponse && set.add(config.onResponse)
-        for (const interceptor of responseInterceptor) {
+        for (const interceptor of set) {
             try {
                 const returnValue = await interceptor(response, error, config)
                 if (typeof returnValue !== 'undefined') {

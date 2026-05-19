@@ -2,7 +2,7 @@ import {AjaxConfig, ResolvedConfig} from '..'
 import {AjaxError} from './error'
 
 export function bodyTransform(body: BodyInit | null | undefined) {
-    if (typeof body === 'object') {
+    if (typeof body === 'object' && body !== null) {
         if (!(body instanceof ReadableStream)
             && !(body instanceof Blob)
             && !(body instanceof ArrayBuffer)
@@ -25,8 +25,8 @@ export function bodyTransform(body: BodyInit | null | undefined) {
 export async function findBodyBlobs(body: any) {
     const blobs: Blob[] = []
     const recurse = async (obj: any) => {
-        if (body instanceof ReadableStream) {
-            blobs.push(await new Response(body).blob())
+        if (obj instanceof ReadableStream) {
+            blobs.push(await new Response(obj).blob())
             return
         }
         if (obj instanceof Blob) {
@@ -56,16 +56,21 @@ export async function findBodyBlobs(body: any) {
  * @param config
  */
 export function mergeConfig(...config: (AjaxConfig | undefined)[]): ResolvedConfig {
-    return config.reduce((prev, next) => {
-        return {
-            ...prev,
-            ...next,
-            url: mergeUrl(prev?.url, next?.url),
-            params: mergeParams(prev?.params, next?.params),
-            headers: mergeHeaders(prev?.headers, next?.headers),
-            signal: mergeAbortSignal(prev?.signal, next?.signal)
-        }
-    }) as ResolvedConfig
+    if (config.length < 1) {
+        throw Error(`No config passed to "mergeConfig" method`)
+    }
+    const fn = (prev: AjaxConfig | undefined, next: AjaxConfig | undefined): ResolvedConfig => ({
+        ...prev,
+        ...next,
+        url: mergeUrl(prev?.url, next?.url),
+        params: mergeParams(prev?.params, next?.params),
+        headers: mergeHeaders(prev?.headers, next?.headers),
+        signal: mergeAbortSignal(prev?.signal, next?.signal)
+    })
+    if (config.length === 1) {
+        return fn(config[0], void 0)
+    }
+    return config.reduce(fn) as ResolvedConfig
 }
 
 export function mergeUrl(prev?: string | URL, next?: string | URL): string | undefined {
@@ -126,16 +131,14 @@ export function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal |
         return prev
     }
     const abortController = new AbortController()
-    prev.onabort = next.onabort = () => abortController.abort()
+    const abort = () => abortController.abort()
+    prev.addEventListener('abort', abort, {once: true})
+    next.addEventListener('abort', abort, {once: true})
     return abortController.signal
 }
 
 export function catchCommonError(e: any, newError: (message?: string) => any) {
     return e instanceof AjaxError
         ? e
-        : newError(
-            e instanceof Error ? e.message
-                : 'toString' in e ? e.toString()
-                    : void 0
-        )
+        : newError(e instanceof Error ? e.message : String(e))
 }

@@ -1,10 +1,11 @@
 import React from 'react'
 import {createRoot} from 'react-dom/client'
-import {ajax, Config, Service} from '../src'
+import {ajax, Config, Service, TimeoutError} from '../src'
 import {AjaxConfig, ResolvedConfig} from '../index'
 
 @Config({
-    url: 'https://baidu.com'
+    url: 'https://baidu.com',
+    timeout: 1
 })
 class TestService extends Service {
     static test() {
@@ -13,8 +14,12 @@ class TestService extends Service {
 }
 
 function App() {
-    const test1 = () => {
-        TestService.test()
+    const test1 = async () => {
+        try {
+            await TestService.test()
+        } catch (e) {
+            console.log(e instanceof TimeoutError)
+        }
     }
 
     const test2 = async () => {
