@@ -1,194 +1,266 @@
-/**
- * Integration tests for core request functionality.
- * Global fetch is mocked by vitest-fetch-mock (test/setup.ts).
- */
-import { describe, it, expect } from 'vitest'
-import { ajax } from '../../src/ajaxInstance'
-import { NetworkError } from '../../src/error'
+import {describe, expect, it} from 'vitest'
+import {ajax} from '../../src/ajaxInstance'
+import {AjaxError, NetworkError, TimeoutError} from '../../src/error'
+import {fetchInit, fetchUrl, mockJson, mockText} from '../helpers/fetch'
 
-// ── Helpers ────────────────────────────────────────────────────────────
-
-/** Queue a JSON success response */
-function jsonOk(data: unknown, status = 200) {
-    fetchMock.mockResponseOnce(JSON.stringify(data), {
-        status,
-        headers: { 'Content-Type': 'application/json' }
-    })
-}
-
-/** Queue a JSON error response */
-function jsonError(status: number, body?: unknown) {
-    fetchMock.mockResponseOnce(
-        JSON.stringify(body ?? { error: `Error ${status}` }),
-        { status, headers: { 'Content-Type': 'application/json' } }
-    )
-}
-
-/** Queue a network failure (fetch throws) */
-function networkFail() {
-    fetchMock.mockRejectOnce(new TypeError('Failed to fetch'))
-}
-
-/** Get the last fetch call's URL */
-function lastUrl(): string {
-    const calls = fetchMock.mock.calls
-    return calls[calls.length - 1]?.[0] as string ?? ''
-}
-
-/** Get the last fetch call's init options */
-function lastInit(): RequestInit | undefined {
-    const calls = fetchMock.mock.calls
-    return calls[calls.length - 1]?.[1] as RequestInit | undefined
-}
-
-// ── Tests ──────────────────────────────────────────────────────────────
-
-describe('Core Requests (integration)', () => {
-    describe('GET request', () => {
-        it('should return JSON response', async () => {
-            jsonOk({ items: [1, 2, 3] })
-            const { result, response, config } = await ajax.get('https://api.example.com/users')
-            expect(result).toStrictEqual({ items: [1, 2, 3] })
-            expect(response.status).toBe(200)
-            expect(config.url).toBe('https://api.example.com/users')
+describe('core request pipeline', () => {
+    describe('request construction', () => {
+        it('requires a URL and does not call fetch when it is missing', async () => {
+            await expect(ajax()).rejects.toThrow(new TypeError('"url" is required'))
+            expect(fetchMock).not.toHaveBeenCalled()
         })
 
-        it('should add query params to URL', async () => {
-            jsonOk({ ok: true })
-            await ajax.get('https://api.example.com/users', { params: { page: '1', sort: 'name' } })
-            expect(lastUrl()).toContain('page=1')
-            expect(lastUrl()).toContain('sort=name')
+        it('supports direct invocation and returns the resolved request config', async () => {
+            mockJson({ok: true})
+            const response = await ajax({
+                url: new URL('https://api.example.com/items'),
+                method: 'POST',
+                body: {name: 'book'} as any,
+                headers: {'x-client': 'test'},
+                params: {page: '2'},
+                timeout: 0
+            })
+
+            expect(response.result).toStrictEqual({ok: true})
+            expect(response.config.url).toBe('https://api.example.com/items')
+            expect(response.config.params.get('page')).toBe('2')
+            expect(response.config.headers.get('x-client')).toBe('test')
+            expect(fetchUrl()).toBe('https://api.example.com/items?page=2')
+            expect(fetchInit().body).toBe('{"name":"book"}')
         })
 
-        it('should merge params with existing query string', async () => {
-            jsonOk({ ok: true })
-            await ajax.get('https://api.example.com/users?base=1', { params: { extra: '2' } })
-            expect(lastUrl()).toContain('base=1')
-            expect(lastUrl()).toContain('extra=2')
+        it('appends encoded params after an existing query string', async () => {
+            mockJson({ok: true})
+            await ajax.get('https://api.example.com/items?active=true', {
+                params: [['search', 'a & b'], ['page', '1']]
+            })
+
+            expect(fetchUrl()).toBe('https://api.example.com/items?active=true&search=a+%26+b&page=1')
         })
 
-        it('should send custom headers', async () => {
-            jsonOk({ ok: true })
-            await ajax.get('https://api.example.com/data', { headers: { 'x-custom': 'my-value' } })
-            expect(lastInit()?.headers).toBeDefined()
-        })
-    })
+        it('passes native RequestInit options and normalized headers to fetch', async () => {
+            mockJson({ok: true})
+            await ajax.get('https://api.example.com/private', {
+                cache: 'no-store',
+                credentials: 'include',
+                headers: new Headers([['x-token', 'secret']]),
+                redirect: 'manual',
+                timeout: 0
+            })
 
-    describe('POST / PUT / PATCH / DELETE', () => {
-        it('should send JSON body via POST', async () => {
-            jsonOk({ created: true })
-            expect((await ajax.post('https://api.example.com/users', { name: 'John' })).result)
-                .toStrictEqual({ created: true })
+            const init = fetchInit()
+            expect(init.cache).toBe('no-store')
+            expect(init.credentials).toBe('include')
+            expect(init.redirect).toBe('manual')
+            expect(init.headers).toBeInstanceOf(Headers)
+            expect((init.headers as Headers).get('x-token')).toBe('secret')
+            expect(init.signal).toBeUndefined()
         })
-        it('should send FormData body', async () => {
-            jsonOk({ uploaded: true })
-            const fd = new FormData(); fd.append('file', new Blob(['data']))
-            expect((await ajax.post('https://api.example.com/upload', fd)).result)
-                .toStrictEqual({ uploaded: true })
-        })
-        it('PUT', async () => {
-            jsonOk({ updated: true })
-            expect((await ajax.put('https://api.example.com/u/1', { x: 1 })).result)
-                .toStrictEqual({ updated: true })
-        })
-        it('PATCH', async () => {
-            jsonOk({ patched: true })
-            expect((await ajax.patch('https://api.example.com/u/1', { x: 1 })).result)
-                .toStrictEqual({ patched: true })
-        })
-        it('DELETE', async () => {
-            jsonOk({ deleted: true })
-            expect((await ajax.delete('https://api.example.com/u/1')).result)
-                .toStrictEqual({ deleted: true })
-        })
-    })
 
-    describe('responseType', () => {
-        it('JSON by default', async () => {
-            jsonOk({ key: 'value' })
-            expect((await ajax.get('https://api.example.com/data')).result).toStrictEqual({ key: 'value' })
+        it.each([
+            ['get', 'GET'],
+            ['delete', 'DELETE'],
+            ['head', 'HEAD'],
+            ['options', 'OPTIONS']
+        ] as const)('%s alias sends the expected method without a body', async (alias, method) => {
+            mockJson({method})
+            await ajax[alias](`https://api.example.com/${alias}`, {timeout: 0})
+
+            expect(fetchInit().method).toBe(method)
+            expect(fetchInit().body).toBeUndefined()
         })
-        it('text', async () => {
-            fetchMock.mockResponseOnce('plain text', { headers: { 'Content-Type': 'text/plain' } })
-            expect((await ajax.get('https://api.example.com/data', { responseType: 'text' })).result).toBe('plain text')
+
+        it.each([
+            ['post', 'POST'],
+            ['put', 'PUT'],
+            ['patch', 'PATCH']
+        ] as const)('%s alias sends the expected method and serialized body', async (alias, method) => {
+            mockJson({method})
+            await ajax[alias](`https://api.example.com/${alias}`, {value: alias}, {timeout: 0})
+
+            expect(fetchInit().method).toBe(method)
+            expect(fetchInit().body).toBe(JSON.stringify({value: alias}))
         })
-        it('blob', async () => {
-            fetchMock.mockResponseOnce(new Blob(['binary']), { headers: { 'Content-Type': 'application/octet-stream' } })
-            expect((await ajax.get('https://api.example.com/data', { responseType: 'blob' })).result).toBeInstanceOf(Blob)
+
+        it('normalizes a directly configured lowercase method at the transport boundary', async () => {
+            mockJson({ok: true})
+
+            const response = await ajax({
+                url: 'https://api.example.com/items/1',
+                method: 'patch',
+                body: {name: 'updated'} as any,
+                timeout: 0
+            })
+
+            expect(fetchInit().method).toBe('PATCH')
+            expect(response.config.method).toBe('PATCH')
         })
-        it('arrayBuffer', async () => {
-            fetchMock.mockResponseOnce(new Uint8Array([1, 2, 3]).buffer, { headers: { 'Content-Type': 'application/octet-stream' } })
-            expect((await ajax.get('https://api.example.com/data', { responseType: 'arrayBuffer' })).result).toBeInstanceOf(ArrayBuffer)
+
+        it('passes supported BodyInit values through without JSON serialization', async () => {
+            mockJson({uploaded: true})
+            const form = new FormData()
+            form.append('name', 'avatar')
+            form.append('file', new Blob(['image']))
+
+            await ajax.post('https://api.example.com/upload', form, {timeout: 0})
+
+            expect(fetchInit().body).toBe(form)
         })
-        it('none → undefined result', async () => {
-            fetchMock.mockResponseOnce('{}', { headers: { 'Content-Type': 'application/json' } })
-            expect((await ajax.get('https://api.example.com/data', { responseType: 'none' })).result).toBeUndefined()
+
+        it('does not add a Content-Type header automatically for JSON bodies', async () => {
+            mockJson({created: true})
+            await ajax.post('https://api.example.com/items', {name: 'book'}, {timeout: 0})
+
+            expect((fetchInit().headers as Headers).has('content-type')).toBe(false)
         })
     })
 
-    describe('error handling', () => {
-        it('404 → NetworkError', async () => {
-            jsonError(404)
-            await expect(ajax.get('https://api.example.com/missing')).rejects.toThrow(NetworkError)
+    describe('response parsing', () => {
+        it('parses JSON by default and exposes the native Response', async () => {
+            mockJson({items: [1, 2, 3]}, {status: 201, statusText: 'Created'})
+            const value = await ajax.get('https://api.example.com/items', {timeout: 0})
+
+            expect(value.result).toStrictEqual({items: [1, 2, 3]})
+            expect(value.response).toBeInstanceOf(Response)
+            expect(value.response.status).toBe(201)
+            expect(value.response.statusText).toBe('Created')
         })
-        it('500 → NetworkError', async () => {
-            jsonError(500)
-            await expect(ajax.get('https://api.example.com/error')).rejects.toThrow(NetworkError)
+
+        it('parses text responses', async () => {
+            mockText('plain text', {headers: {'content-type': 'text/plain'}})
+            const {result} = await ajax.get('https://api.example.com/text', {
+                responseType: 'text',
+                timeout: 0
+            })
+            expect(result).toBe('plain text')
         })
-        it('fetch failure → NetworkError', async () => {
-            networkFail()
-            await expect(ajax.get('https://api.example.com/data')).rejects.toThrow(NetworkError)
+
+        it('parses Blob responses', async () => {
+            mockText('binary payload', {headers: {'content-type': 'application/octet-stream'}})
+            const {result} = await ajax.get('https://api.example.com/blob', {
+                responseType: 'blob',
+                timeout: 0
+            })
+
+            expect(result).toBeInstanceOf(Blob)
+            expect(await (result as Blob).text()).toBe('binary payload')
         })
-        it('error cause contains config', async () => {
-            jsonError(403)
-            try { await ajax.get('https://api.example.com/forbidden') } catch (e: any) {
-                expect(e.cause.config.url).toBe('https://api.example.com/forbidden')
+
+        it('parses ArrayBuffer responses', async () => {
+            mockText('bytes')
+            const {result} = await ajax.get('https://api.example.com/buffer', {
+                responseType: 'arrayBuffer',
+                timeout: 0
+            })
+
+            expect(result).toBeInstanceOf(ArrayBuffer)
+            expect(new TextDecoder().decode(result as ArrayBuffer)).toBe('bytes')
+        })
+
+        it('parses multipart form data responses', async () => {
+            const form = new FormData()
+            form.append('name', 'alice')
+            form.append('role', 'admin')
+            fetchMock.mockImplementationOnce(async () => new Response(form))
+
+            const {result} = await ajax.get('https://api.example.com/form', {
+                responseType: 'formData',
+                timeout: 0
+            })
+
+            expect(result).toBeInstanceOf(FormData)
+            expect((result as FormData).get('name')).toBe('alice')
+            expect((result as FormData).get('role')).toBe('admin')
+        })
+
+        it('skips body parsing when responseType is none', async () => {
+            mockText('not parsed')
+            const {result, response} = await ajax.get('https://api.example.com/raw', {
+                responseType: 'none',
+                timeout: 0
+            })
+
+            expect(result).toBeUndefined()
+            expect(await response.text()).toBe('not parsed')
+        })
+
+        it('supports a bodyless 204 response when parsing is disabled', async () => {
+            fetchMock.mockImplementationOnce(async () => new Response(null, {status: 204}))
+            const {result, response} = await ajax.get('https://api.example.com/empty', {
+                responseType: 'none',
+                timeout: 0
+            })
+            expect(response.status).toBe(204)
+            expect(result).toBeUndefined()
+        })
+    })
+
+    describe('errors', () => {
+        it.each([400, 401, 404, 500, 503])('maps HTTP %s to NetworkError with response context', async status => {
+            mockJson({error: true}, {status})
+
+            try {
+                await ajax.get(`https://api.example.com/status/${status}`, {timeout: 0})
+                expect.unreachable('request should reject')
+            } catch (error) {
+                expect(error).toBeInstanceOf(NetworkError)
+                expect(error).toMatchObject({
+                    type: 'networkError',
+                    message: expect.stringContaining(`status ${status}`),
+                    cause: {
+                        config: expect.objectContaining({url: `https://api.example.com/status/${status}`}),
+                        response: expect.objectContaining({status})
+                    }
+                })
             }
         })
-    })
 
-    describe('timeout', () => {
-        it('should throw NetworkError on aborted fetch', async () => {
-            fetchMock.mockAbortOnce()
-            await expect(ajax.get('https://api.example.com/slow', { timeout: 10 })).rejects.toThrow(NetworkError)
-        })
-        it('should not timeout when timeout is 0', async () => {
-            jsonOk({ ok: true })
-            expect((await ajax.get('https://api.example.com/data', { timeout: 0 })).result)
-                .toStrictEqual({ ok: true })
-        })
-    })
+        it('wraps a fetch Error as NetworkError and preserves its message', async () => {
+            fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
-    describe('abort signal', () => {
-        it('should throw NetworkError on aborted fetch', async () => {
-            fetchMock.mockAbortOnce()
-            await expect(ajax.get('https://api.example.com/data')).rejects.toThrow(NetworkError)
+            await expect(ajax.get('https://api.example.com/offline', {timeout: 0}))
+                .rejects.toMatchObject({type: 'networkError', message: expect.stringContaining('Failed to fetch')})
         })
-    })
 
-    describe('URL merging', () => {
-        it('should merge instance base URL with request path', async () => {
-            jsonOk({ ok: true })
-            const api = ajax.create({ url: 'https://api.example.com/v1' })
-            await api.get('/users')
-            expect(lastUrl()).toBe('https://api.example.com/v1/users')
-        })
-        it('should replace base URL when request uses absolute URL', async () => {
-            jsonOk({ ok: true })
-            const api = ajax.create({ url: 'https://api.example.com/v1' })
-            await api.get('https://other.example.com/data')
-            expect(lastUrl()).toBe('https://other.example.com/data')
-        })
-    })
+        it('stringifies a non-Error fetch rejection', async () => {
+            fetchMock.mockRejectedValueOnce('offline')
 
-    describe('AjaxResponse shape', () => {
-        it('should return result, response, and config', async () => {
-            jsonOk({ data: 'test' })
-            const res = await ajax.get('https://api.example.com/data')
-            expect(res).toHaveProperty('result')
-            expect(res).toHaveProperty('response')
-            expect(res).toHaveProperty('config')
-            expect(res.response).toBeInstanceOf(Response)
+            await expect(ajax.get('https://api.example.com/offline', {timeout: 0}))
+                .rejects.toMatchObject({type: 'networkError', message: expect.stringContaining('offline')})
+        })
+
+        it('does not double-wrap an existing AjaxError rejected by fetch', async () => {
+            const expected = new TimeoutError('upstream timeout', {
+                config: {params: new URLSearchParams(), headers: new Headers()} as any
+            })
+            fetchMock.mockRejectedValueOnce(expected)
+
+            await expect(ajax.get('https://api.example.com/timeout', {timeout: 0})).rejects.toBe(expected)
+        })
+
+        it('maps invalid JSON to AjaxError with response and config context', async () => {
+            mockText('{invalid json', {headers: {'content-type': 'application/json'}})
+
+            try {
+                await ajax.get('https://api.example.com/invalid-json', {timeout: 0})
+                expect.unreachable('request should reject')
+            } catch (error) {
+                expect(error).toBeInstanceOf(AjaxError)
+                expect(error).not.toBeInstanceOf(NetworkError)
+                expect(error).toMatchObject({
+                    type: 'ajaxError',
+                    cause: {
+                        config: expect.objectContaining({url: 'https://api.example.com/invalid-json'}),
+                        response: expect.any(Response)
+                    }
+                })
+            }
+        })
+
+        it('reports JSON parsing failure for an empty 204 response under the default responseType', async () => {
+            fetchMock.mockImplementationOnce(async () => new Response(null, {status: 204}))
+            await expect(ajax.get('https://api.example.com/empty-json', {timeout: 0}))
+                .rejects.toBeInstanceOf(AjaxError)
         })
     })
 })

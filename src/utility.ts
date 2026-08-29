@@ -1,5 +1,5 @@
-import {AjaxConfig, ResolvedConfig} from '..'
-import {AjaxError} from './error'
+import type {AjaxConfig, ResolvedConfig} from './types.js'
+import {AjaxError} from './error.js'
 
 export function bodyTransform(body: BodyInit | null | undefined) {
     if (typeof body === 'object' && body !== null) {
@@ -130,10 +130,30 @@ export function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal |
     if (!next) {
         return prev
     }
+    if (typeof AbortSignal.any === 'function') {
+        return AbortSignal.any([prev, next])
+    }
+
     const abortController = new AbortController()
-    const abort = () => abortController.abort()
-    prev.addEventListener('abort', abort, {once: true})
-    next.addEventListener('abort', abort, {once: true})
+    const cleanup = () => {
+        prev.removeEventListener('abort', abortPrev)
+        next.removeEventListener('abort', abortNext)
+    }
+    const abortFrom = (source: AbortSignal) => {
+        cleanup()
+        abortController.abort(source.reason)
+    }
+    const abortPrev = () => abortFrom(prev)
+    const abortNext = () => abortFrom(next)
+
+    if (prev.aborted) {
+        abortPrev()
+    } else if (next.aborted) {
+        abortNext()
+    } else {
+        prev.addEventListener('abort', abortPrev, {once: true})
+        next.addEventListener('abort', abortNext, {once: true})
+    }
     return abortController.signal
 }
 

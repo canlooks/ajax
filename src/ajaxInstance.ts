@@ -1,6 +1,13 @@
-import {core} from './core'
-import {Ajax, AjaxConfig, ResolvedConfig, Method, RequestInterceptorType, ResponseInterceptorType} from '../index'
-import {mergeConfig} from './utility'
+import {core} from './core.js'
+import type {
+    Ajax,
+    AjaxConfig,
+    Method,
+    RequestInterceptorType,
+    ResolvedConfig,
+    ResponseInterceptorType
+} from './types.js'
+import {mergeConfig} from './utility.js'
 
 export const ajax = createInstance()
 
@@ -51,18 +58,18 @@ function createInstance(
         return (url: string, config?: AjaxConfig) => ajaxInstance({...config, method, url})
     }
 
-    ajaxInstance.get = aliasWithoutBody('get')
-    ajaxInstance.delete = aliasWithoutBody('delete')
-    ajaxInstance.head = aliasWithoutBody('head')
-    ajaxInstance.options = aliasWithoutBody('options')
+    ajaxInstance.get = aliasWithoutBody('GET')
+    ajaxInstance.delete = aliasWithoutBody('DELETE')
+    ajaxInstance.head = aliasWithoutBody('HEAD')
+    ajaxInstance.options = aliasWithoutBody('OPTIONS')
 
     const aliasWithBody = (method: Method) => {
         return (url: string, body: any, config?: AjaxConfig) => ajaxInstance({...config, method, url, body})
     }
 
-    ajaxInstance.post = aliasWithBody('post')
-    ajaxInstance.put = aliasWithBody('put')
-    ajaxInstance.patch = aliasWithBody('patch')
+    ajaxInstance.post = aliasWithBody('POST')
+    ajaxInstance.put = aliasWithBody('PUT')
+    ajaxInstance.patch = aliasWithBody('PATCH')
 
     return ajaxInstance
 

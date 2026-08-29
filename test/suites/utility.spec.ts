@@ -59,6 +59,16 @@ describe('bodyTransform', () => {
         expect(result).toStrictEqual(obj)
     })
 
+    it('should JSON.stringify objects with a toJSON implementation', () => {
+        const body = {toJSON: () => ({serialized: true})}
+        expect(bodyTransform(body as any)).toBe('{"serialized":true}')
+    })
+
+    it('should return the original object when a custom toJSON throws', () => {
+        const body = {toJSON: () => { throw new Error('cannot serialize') }}
+        expect(bodyTransform(body as any)).toBe(body)
+    })
+
     it('should not JSON.stringify a number', () => {
         expect(bodyTransform(42 as any)).toStrictEqual(42)
     })
@@ -115,6 +125,8 @@ describe('findBodyBlobs', () => {
         const blobs = await findBodyBlobs(stream)
         expect(blobs.length).toStrictEqual(1)
         expect(blobs[0] instanceof Blob).toStrictEqual(true)
+        expect(blobs[0].size).toBe(3)
+        expect([...new Uint8Array(await blobs[0].arrayBuffer())]).toStrictEqual([1, 2, 3])
     })
 
     it('should return empty array for null body', async () => {
@@ -136,6 +148,18 @@ describe('findBodyBlobs', () => {
         const body = { level1: { level2: [new Blob(['deep'])] } }
         const blobs = await findBodyBlobs(body)
         expect(blobs.length).toStrictEqual(1)
+    })
+
+    it('should preserve repeated Blob references as repeated body entries', async () => {
+        const blob = new Blob(['same'])
+        const blobs = await findBodyBlobs([blob, {nested: blob}])
+        expect(blobs).toStrictEqual([blob, blob])
+    })
+
+    it('should ignore primitive values and FormData string fields', async () => {
+        const form = new FormData()
+        form.append('name', 'alice')
+        expect(await findBodyBlobs([0, false, '', Symbol('x'), form])).toStrictEqual([])
     })
 })
 
@@ -176,6 +200,16 @@ describe('mergeUrl', () => {
     })
     it('should merge single-segment paths', () => {
         expect(mergeUrl('https://api.example.com/v1', '123')).toStrictEqual('https://api.example.com/v1/123')
+    })
+
+    it('should normalize a single URL object to its href', () => {
+        expect(mergeUrl(new URL('https://api.example.com/base'), undefined)).toBe('https://api.example.com/base')
+        expect(mergeUrl(undefined, new URL('https://api.example.com/next'))).toBe('https://api.example.com/next')
+    })
+
+    it('should treat an uppercase protocol as an absolute URL', () => {
+        expect(mergeUrl('https://api.example.com/base', 'HTTPS://other.example.com/data'))
+            .toBe('HTTPS://other.example.com/data')
     })
 })
 
@@ -219,6 +253,16 @@ describe('mergeParams', () => {
         expect(result.get('k')).toStrictEqual('v')
         expect(result !== prev).toStrictEqual(true)
     })
+
+    it('should keep only the final value for duplicate keys supplied by next', () => {
+        const result = mergeParams('tag=base&keep=yes', 'tag=first&tag=last')
+        expect(result.getAll('tag')).toStrictEqual(['last'])
+        expect(result.get('keep')).toBe('yes')
+    })
+
+    it('should create an empty URLSearchParams when both inputs are absent', () => {
+        expect(mergeParams(undefined, undefined).toString()).toBe('')
+    })
 })
 
 describe('mergeHeaders', () => {
@@ -247,9 +291,39 @@ describe('mergeHeaders', () => {
         expect(result.get('x-a')).toStrictEqual('1')
         expect(result.get('x-b')).toStrictEqual('2')
     })
+
+    it('should return a next Headers instance directly when prev is absent', () => {
+        const next = new Headers({'x-next': 'yes'})
+        expect(mergeHeaders(undefined, next)).toBe(next)
+    })
+
+    it('should return a new empty Headers instance when both inputs are absent', () => {
+        const result = mergeHeaders()
+        expect(result).toBeInstanceOf(Headers)
+        expect([...result]).toStrictEqual([])
+    })
 })
 
 describe('mergeAbortSignal', () => {
+    const withFallbackImplementation = (run: () => void) => {
+        const descriptor = Object.getOwnPropertyDescriptor(AbortSignal, 'any')
+        Object.defineProperty(AbortSignal, 'any', {
+            configurable: true,
+            value: undefined
+        })
+        try {
+            run()
+        } finally {
+            if (descriptor) {
+                Object.defineProperty(AbortSignal, 'any', descriptor)
+            }
+        }
+    }
+
+    it('should preserve the absent value when neither signal exists', () => {
+        expect(mergeAbortSignal()).toBeUndefined()
+        expect(mergeAbortSignal(null, null)).toBeNull()
+    })
     it('should return next when prev is null', () => {
         const next = new AbortController().signal
         expect(mergeAbortSignal(null, next)).toStrictEqual(next)
@@ -280,9 +354,46 @@ describe('mergeAbortSignal', () => {
         })
         ac2.abort()
     }))
+
+    it('should leave the merged signal active while both sources are active', () => {
+        const ac1 = new AbortController()
+        const ac2 = new AbortController()
+        const merged = mergeAbortSignal(ac1.signal, ac2.signal)
+        expect(merged?.aborted).toBe(false)
+    })
+
+    it.each(['prev', 'next'] as const)(
+        'fallback should immediately preserve an already-aborted %s signal and its reason',
+        source => withFallbackImplementation(() => {
+            const prev = new AbortController()
+            const next = new AbortController()
+            const reason = new Error(`${source} cancelled`)
+            ;(source === 'prev' ? prev : next).abort(reason)
+
+            const merged = mergeAbortSignal(prev.signal, next.signal)
+
+            expect(merged?.aborted).toBe(true)
+            expect(merged?.reason).toBe(reason)
+        })
+    )
+
+    it('fallback should propagate a future abort reason', () => withFallbackImplementation(() => {
+        const prev = new AbortController()
+        const next = new AbortController()
+        const reason = new Error('cancelled later')
+        const merged = mergeAbortSignal(prev.signal, next.signal)
+
+        next.abort(reason)
+
+        expect(merged?.aborted).toBe(true)
+        expect(merged?.reason).toBe(reason)
+    }))
 })
 
 describe('mergeConfig', () => {
+    it('should reject calls without any config argument', () => {
+        expect(() => mergeConfig()).toThrow('No config passed to "mergeConfig" method')
+    })
     it('should merge URLs across configs', () => {
         const result = mergeConfig(
             { url: 'https://api.example.com' },
@@ -326,6 +437,24 @@ describe('mergeConfig', () => {
         expect(result.params.get('a')).toStrictEqual('1')
         expect(result.headers.get('x-b')).toStrictEqual('2')
     })
+
+    it('should let later scalar values override earlier values including falsy values', () => {
+        const result = mergeConfig(
+            {timeout: 1000, credentials: 'include'},
+            {timeout: 0, credentials: 'omit'}
+        )
+        expect(result.timeout).toBe(0)
+        expect(result.credentials).toBe('omit')
+    })
+
+    it('should combine signals so either config can abort the resolved config', () => {
+        const first = new AbortController()
+        const second = new AbortController()
+        const result = mergeConfig({signal: first.signal}, {signal: second.signal})
+        expect(result.signal?.aborted).toBe(false)
+        second.abort()
+        expect(result.signal?.aborted).toBe(true)
+    })
 })
 
 describe('catchCommonError', () => {
@@ -340,5 +469,10 @@ describe('catchCommonError', () => {
         const result = catchCommonError(new Error('broke'), factory)
         expect(result).toBeInstanceOf(Error)
         expect(result.message).toStrictEqual('wrapped: broke')
+    })
+
+    it.each([null, undefined, 0, false, 'failure'])('should stringify non-Error rejection %j', value => {
+        const result = catchCommonError(value, (message?: string) => new Error(`wrapped: ${message}`))
+        expect(result.message).toBe(`wrapped: ${String(value)}`)
     })
 })

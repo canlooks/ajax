@@ -211,6 +211,7 @@ class AjaxError extends Error {
   cause: {
     config: ResolvedConfig   // The config used for the failed request
     response?: Response      // The Response object (if available)
+    reason?: unknown         // Original external AbortSignal reason (if available)
   }
 }
 ```
@@ -531,6 +532,7 @@ When `onDownloadProgress` is set:
 - The response body is read as a `Uint8Array` stream
 - `responseType` defaults to `'none'` — raw bytes are accumulated in `result`
 - Supported `responseType` values with download progress: `'arrayBuffer'`, `'blob'`, or `'none'`
+- If `Content-Length` is unavailable, `'arrayBuffer'` and `'blob'` fall back to native response parsing without progress events; `'none'` leaves the response body unconsumed
 
 **Note:** When both upload and download progress are active, the default timeout is disabled (`undefined`). Set it explicitly if needed.
 
@@ -674,9 +676,9 @@ The following utilities are exported and can be used directly:
 
 ## API Reference
 
-### `ajax` (default export)
+### `ajax` (named export)
 
-The default singleton instance.
+The shared singleton instance. Import it by name with `import { ajax } from '@canlooks/ajax'`.
 
 ```ts
 interface Ajax {

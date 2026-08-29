@@ -1,7 +1,7 @@
 import React from 'react'
 import {createRoot} from 'react-dom/client'
 import {ajax, Config, Service, TimeoutError} from '../src'
-import {AjaxConfig, ResolvedConfig} from '../index'
+import type {AjaxConfig, ResolvedConfig} from '../src'
 
 @Config({
     url: 'https://baidu.com',

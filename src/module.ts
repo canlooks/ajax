@@ -1,6 +1,12 @@
-import {AjaxConfig, InterceptorDecorator, RequestInterceptorType, ResponseInterceptorType} from '../index'
-import {ajax} from './ajaxInstance'
-import {mergeConfig} from './utility'
+import type {
+    AjaxConfig,
+    AjaxReturn,
+    InterceptorDecorator,
+    RequestInterceptorType,
+    ResponseInterceptorType
+} from './types.js'
+import {ajax} from './ajaxInstance.js'
+import {mergeConfig} from './utility.js'
 
 export class Service {
     static config: AjaxConfig = {}
@@ -16,20 +22,20 @@ export class Service {
      * alias without body
      */
 
-    static get(url: string, config: AjaxConfig = {}) {
-        return this.ajax(mergeConfig(config, {url, method: 'GET'}))
+    static get<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
+        return this.ajax<T>(mergeConfig(config, {url, method: 'GET'}))
     }
 
-    static delete(url: string, config: AjaxConfig = {}) {
-        return this.ajax(mergeConfig(config, {url, method: 'DELETE'}))
+    static delete<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
+        return this.ajax<T>(mergeConfig(config, {url, method: 'DELETE'}))
     }
 
-    static head(url: string, config: AjaxConfig = {}) {
-        return this.ajax(mergeConfig(config, {url, method: 'HEAD'}))
+    static head<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
+        return this.ajax<T>(mergeConfig(config, {url, method: 'HEAD'}))
     }
 
-    static options(url: string, config: AjaxConfig = {}) {
-        return this.ajax(mergeConfig(config, {url, method: 'OPTIONS'}))
+    static options<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
+        return this.ajax<T>(mergeConfig(config, {url, method: 'OPTIONS'}))
     }
 
     /**
@@ -37,16 +43,16 @@ export class Service {
      * alias with body
      */
 
-    static post(url: string, body?: any, config: AjaxConfig = {}) {
-        return this.ajax(mergeConfig(config, {url, body, method: 'POST'}))
+    static post<T = any>(url: string, body?: any, config: AjaxConfig = {}): AjaxReturn<T> {
+        return this.ajax<T>(mergeConfig(config, {url, body, method: 'POST'}))
     }
 
-    static put(url: string, body?: any, config: AjaxConfig = {}) {
-        return this.ajax(mergeConfig(config, {url, body, method: 'PUT'}))
+    static put<T = any>(url: string, body?: any, config: AjaxConfig = {}): AjaxReturn<T> {
+        return this.ajax<T>(mergeConfig(config, {url, body, method: 'PUT'}))
     }
 
-    static patch(url: string, body?: any, config: AjaxConfig = {}) {
-        return this.ajax(mergeConfig(config, {url, body, method: 'PATCH'}))
+    static patch<T = any>(url: string, body?: any, config: AjaxConfig = {}): AjaxReturn<T> {
+        return this.ajax<T>(mergeConfig(config, {url, body, method: 'PATCH'}))
     }
 }
 

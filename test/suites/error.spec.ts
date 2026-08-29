@@ -1,83 +1,101 @@
-/**
- * Unit tests for error classes in src/error.ts
- */
-import { describe, it, expect } from 'vitest'
-import { AjaxError, NetworkError, AbortError, TimeoutError, prefix } from '../../src/error'
+import {afterEach, describe, expect, it, vi} from 'vitest'
+import {AbortError, AjaxError, NetworkError, TimeoutError, prefix} from '../../src/error'
 
-const dummyConfig = { params: new URLSearchParams(), headers: new Headers() } as any
+const config = {
+    url: 'https://api.example.com/data',
+    params: new URLSearchParams(),
+    headers: new Headers()
+} as any
 
-describe('Error Classes', () => {
-    describe('AjaxError', () => {
-        it('should be an instance of Error', () => {
-            expect(new AjaxError('test', { config: dummyConfig })).toBeInstanceOf(Error)
-        })
-        it('should prepend prefix to message', () => {
-            const err = new AjaxError('test error', { config: dummyConfig })
-            expect(err.message).toContain(prefix)
-            expect(err.message).toContain('test error')
-        })
-        it('should have type "ajaxError"', () => {
-            expect(new AjaxError('msg', { config: dummyConfig }).type).toBe('ajaxError')
-        })
-        it('should store cause with config', () => {
-            const err = new AjaxError('msg', { config: dummyConfig })
-            expect(err.cause.config).toStrictEqual(dummyConfig)
-        })
-        it('should have default message', () => {
-            const err = new AjaxError(undefined, { config: dummyConfig })
-            expect(err.message).toContain('Ajax Error')
-        })
+afterEach(() => {
+    vi.restoreAllMocks()
+    vi.resetModules()
+})
+
+describe('AjaxError hierarchy', () => {
+    it('extends Error, prefixes the message and stores native cause', () => {
+        const cause = {config}
+        const error = new AjaxError('parse failed', cause)
+
+        expect(error).toBeInstanceOf(Error)
+        expect(error).toBeInstanceOf(AjaxError)
+        expect(error.message).toBe(`${prefix}parse failed`)
+        expect(error.cause).toBe(cause)
+        expect(error.type).toBe('ajaxError')
+        expect(error.stack).toContain(`${prefix}parse failed`)
     })
 
-    describe('NetworkError', () => {
-        it('should extend AjaxError', () => {
-            expect(new NetworkError('x', { config: dummyConfig })).toBeInstanceOf(AjaxError)
-        })
-        it('should have type "networkError"', () => {
-            expect(new NetworkError('x', { config: dummyConfig }).type).toBe('networkError')
-        })
+    it('uses the Ajax Error default message only when message is undefined', () => {
+        expect(new AjaxError(undefined, {config}).message).toBe(`${prefix}Ajax Error`)
+        expect(new AjaxError('', {config}).message).toBe(prefix)
     })
 
-    describe('AbortError', () => {
-        it('should extend AjaxError', () => {
-            expect(new AbortError(undefined, { config: dummyConfig })).toBeInstanceOf(AjaxError)
-        })
-        it('should have type "abortError"', () => {
-            expect(new AbortError(undefined, { config: dummyConfig }).type).toBe('abortError')
-        })
-        it('should have default abort message', () => {
-            expect(new AbortError(undefined, { config: dummyConfig }).message).toContain('Request was aborted')
-        })
+    it('can retain a native Response in its cause', () => {
+        const response = new Response('failure', {status: 500})
+        const error = new AjaxError('failed', {config, response})
+
+        expect(error.cause.response).toBe(response)
+        expect(error.cause.response?.status).toBe(500)
     })
 
-    describe('TimeoutError', () => {
-        it('should extend AjaxError', () => {
-            expect(new TimeoutError(undefined, { config: dummyConfig })).toBeInstanceOf(AjaxError)
-        })
-        it('should have type "timeoutError"', () => {
-            expect(new TimeoutError(undefined, { config: dummyConfig }).type).toBe('timeoutError')
-        })
-        it('should have default timeout message', () => {
-            expect(new TimeoutError(undefined, { config: dummyConfig }).message).toContain('Request timeout')
-        })
+    it.each([
+        [NetworkError, 'networkError', 'Network Error'],
+        [AbortError, 'abortError', 'Request was aborted'],
+        [TimeoutError, 'timeoutError', 'Request timeout']
+    ] as const)('%s extends AjaxError with type %s and its default message', (ErrorClass, type, message) => {
+        const error = new ErrorClass(undefined, {config})
+
+        expect(error).toBeInstanceOf(AjaxError)
+        expect(error).toBeInstanceOf(ErrorClass)
+        expect(error.type).toBe(type)
+        expect(error.message).toBe(`${prefix}${message}`)
+        expect(error.cause.config).toBe(config)
     })
 
-    describe('Error type discrimination', () => {
-        it('should distinguish all error types', () => {
-            const net = new NetworkError('x', { config: dummyConfig })
-            const abt = new AbortError(undefined, { config: dummyConfig })
-            const tmt = new TimeoutError(undefined, { config: dummyConfig })
-            // All extend AjaxError
-            for (const e of [net, abt, tmt]) {
-                expect(e).toBeInstanceOf(AjaxError)
-            }
-            // Types are distinct
-            expect(net.type).toBe('networkError')
-            expect(abt.type).toBe('abortError')
-            expect(tmt.type).toBe('timeoutError')
-            // instanceof checks specific classes
-            expect(abt instanceof NetworkError).toBe(false)
-            expect(tmt instanceof AbortError).toBe(false)
-        })
+    it('preserves custom messages in every specialized error', () => {
+        expect(new NetworkError('offline', {config}).message).toBe(`${prefix}offline`)
+        expect(new AbortError('cancelled by user', {config}).message).toBe(`${prefix}cancelled by user`)
+        expect(new TimeoutError('deadline exceeded', {config}).message).toBe(`${prefix}deadline exceeded`)
+    })
+
+    it('supports reliable instanceof and type discrimination', () => {
+        const network = new NetworkError(undefined, {config})
+        const abort = new AbortError(undefined, {config})
+        const timeout = new TimeoutError(undefined, {config})
+
+        expect(network).not.toBeInstanceOf(AbortError)
+        expect(abort).not.toBeInstanceOf(TimeoutError)
+        expect(timeout).not.toBeInstanceOf(NetworkError)
+        expect(new Set([network.type, abort.type, timeout.type]).size).toBe(3)
+    })
+})
+
+describe('debug mode', () => {
+    it('logs the resolved config when CANLOOKS_AJAX_DEBUG is on', async () => {
+        vi.stubEnv('CANLOOKS_AJAX_DEBUG', 'on')
+        vi.resetModules()
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        const module = await import('../../src/error')
+
+        new module.AjaxError('debug', {config})
+
+        expect(module.debug).toBe(true)
+        expect(consoleError).toHaveBeenCalledOnce()
+        expect(consoleError).toHaveBeenCalledWith(
+            '[@canlooks/ajax] Input Config: ',
+            JSON.stringify(config, null, 2)
+        )
+    })
+
+    it('does not log config when debug mode is not exactly on', async () => {
+        vi.stubEnv('CANLOOKS_AJAX_DEBUG', 'off')
+        vi.resetModules()
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        const module = await import('../../src/error')
+
+        new module.AjaxError('quiet', {config})
+
+        expect(module.debug).toBe(false)
+        expect(consoleError).not.toHaveBeenCalled()
     })
 })

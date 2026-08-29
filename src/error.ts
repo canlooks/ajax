@@ -1,4 +1,4 @@
-import {AjaxErrorCause} from '../index'
+import type {AjaxErrorCause} from './types.js'
 
 export const prefix = '[@canlooks/ajax] '
 

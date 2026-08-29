@@ -1,13 +1,21 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "jsx": "react",
+    "rootDir": "..",
+    "noEmit": true,
+    "jsx": "react-jsx",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "noUnusedLocals": false
+    "noUnusedLocals": false,
+    "types": [
+      "node",
+      "vitest/globals",
+      "vitest-fetch-mock"
+    ]
   },
   "include": [
-    "**/*"
+    "./**/*.ts",
+    "./**/*.tsx",
+    "../src/**/*.ts"
   ]
 }
