@@ -1,9 +1,11 @@
 /**
  * Unit tests for utility functions in src/utility.ts
  */
-import { describe, it, expect } from 'vitest'
-import { bodyTransform, findBodyBlobs, mergeUrl, mergeParams, mergeHeaders, mergeAbortSignal, mergeConfig, catchCommonError } from '../../src/utility'
+import { describe, it, expect, vi } from 'vitest'
+import {mergeAbortSignalScope} from '../../src/abortSignal'
+import { bodyTransform, findBodyBlobs, mergeUrl, mergeParams, mergeHeaders, mergeAbortSignal, mergeConfig, mergeConfigScope, catchCommonError } from '../../src/utility'
 import { AjaxError } from '../../src/error'
+import {withoutAbortSignalAny} from '../helpers/abort'
 
 describe('bodyTransform', () => {
     it('should JSON.stringify a plain object', () => {
@@ -243,9 +245,15 @@ describe('mergeParams', () => {
         expect(prev.get('y')).toStrictEqual(null)
         expect(prev.get('x')).toStrictEqual('1')
     })
-    it('should return next when prev is undefined', () => {
+    it('should copy a next URLSearchParams instance when prev is undefined', () => {
         const next = new URLSearchParams({ k: 'v' })
-        expect(mergeParams(undefined, next)).toStrictEqual(next)
+        const result = mergeParams(undefined, next)
+
+        expect(result).not.toBe(next)
+        expect(result.toString()).toBe(next.toString())
+
+        next.set('k', 'changed')
+        expect(result.get('k')).toBe('v')
     })
     it('should copy prev when next is undefined', () => {
         const prev = new URLSearchParams({ k: 'v' })
@@ -292,9 +300,15 @@ describe('mergeHeaders', () => {
         expect(result.get('x-b')).toStrictEqual('2')
     })
 
-    it('should return a next Headers instance directly when prev is absent', () => {
+    it('should copy a next Headers instance when prev is absent', () => {
         const next = new Headers({'x-next': 'yes'})
-        expect(mergeHeaders(undefined, next)).toBe(next)
+        const result = mergeHeaders(undefined, next)
+
+        expect(result).not.toBe(next)
+        expect([...result]).toStrictEqual([...next])
+
+        next.set('x-next', 'changed')
+        expect(result.get('x-next')).toBe('yes')
     })
 
     it('should return a new empty Headers instance when both inputs are absent', () => {
@@ -305,21 +319,6 @@ describe('mergeHeaders', () => {
 })
 
 describe('mergeAbortSignal', () => {
-    const withFallbackImplementation = (run: () => void) => {
-        const descriptor = Object.getOwnPropertyDescriptor(AbortSignal, 'any')
-        Object.defineProperty(AbortSignal, 'any', {
-            configurable: true,
-            value: undefined
-        })
-        try {
-            run()
-        } finally {
-            if (descriptor) {
-                Object.defineProperty(AbortSignal, 'any', descriptor)
-            }
-        }
-    }
-
     it('should preserve the absent value when neither signal exists', () => {
         expect(mergeAbortSignal()).toBeUndefined()
         expect(mergeAbortSignal(null, null)).toBeNull()
@@ -331,6 +330,10 @@ describe('mergeAbortSignal', () => {
     it('should return prev when next is null', () => {
         const prev = new AbortController().signal
         expect(mergeAbortSignal(prev, null)).toStrictEqual(prev)
+    })
+    it('should return the same signal when both inputs are identical', () => {
+        const signal = new AbortController().signal
+        expect(mergeAbortSignal(signal, signal)).toBe(signal)
     })
     it('should trigger merged signal when prev is aborted', () => new Promise<void>((done) => {
         const ac1 = new AbortController()
@@ -364,7 +367,7 @@ describe('mergeAbortSignal', () => {
 
     it.each(['prev', 'next'] as const)(
         'fallback should immediately preserve an already-aborted %s signal and its reason',
-        source => withFallbackImplementation(() => {
+        source => withoutAbortSignalAny(() => {
             const prev = new AbortController()
             const next = new AbortController()
             const reason = new Error(`${source} cancelled`)
@@ -377,17 +380,122 @@ describe('mergeAbortSignal', () => {
         })
     )
 
-    it('fallback should propagate a future abort reason', () => withFallbackImplementation(() => {
+    it('legacy fallback should reject an unowned merge of two active signals', () => withoutAbortSignalAny(() => {
         const prev = new AbortController()
         const next = new AbortController()
+
+        expect(() => mergeAbortSignal(prev.signal, next.signal)).toThrow(
+            'use mergeAbortSignalScope() or mergeConfigScope()'
+        )
+    }))
+
+    it('fallback scope should propagate a future reason and release both listeners', () => withoutAbortSignalAny(() => {
+        const prev = new AbortController()
+        const next = new AbortController()
+        const removePrev = vi.spyOn(prev.signal, 'removeEventListener')
+        const removeNext = vi.spyOn(next.signal, 'removeEventListener')
         const reason = new Error('cancelled later')
-        const merged = mergeAbortSignal(prev.signal, next.signal)
+        const scope = mergeAbortSignalScope(prev.signal, next.signal)
 
         next.abort(reason)
 
-        expect(merged?.aborted).toBe(true)
-        expect(merged?.reason).toBe(reason)
+        expect(scope.signal?.aborted).toBe(true)
+        expect(scope.signal?.reason).toBe(reason)
+        expect(removePrev).toHaveBeenCalledOnce()
+        expect(removeNext).toHaveBeenCalledOnce()
     }))
+
+    it('fallback scope cleanup should be idempotent and detach an active merge', () => withoutAbortSignalAny(() => {
+        const prev = new AbortController()
+        const next = new AbortController()
+        const addPrev = vi.spyOn(prev.signal, 'addEventListener')
+        const addNext = vi.spyOn(next.signal, 'addEventListener')
+        const removePrev = vi.spyOn(prev.signal, 'removeEventListener')
+        const removeNext = vi.spyOn(next.signal, 'removeEventListener')
+        const scope = mergeAbortSignalScope(prev.signal, next.signal)
+
+        expect(addPrev).toHaveBeenCalledOnce()
+        expect(addNext).toHaveBeenCalledOnce()
+        scope.cleanup()
+        scope.cleanup()
+
+        expect(removePrev).toHaveBeenCalledOnce()
+        expect(removeNext).toHaveBeenCalledOnce()
+        next.abort(new Error('after cleanup'))
+        expect(scope.signal?.aborted).toBe(false)
+    }))
+
+    it('fallback scope should ignore a queued listener after cleanup', () => withoutAbortSignalAny(() => {
+        const prev = new AbortController()
+        const next = new AbortController()
+        const addPrev = vi.spyOn(prev.signal, 'addEventListener')
+        const scope = mergeAbortSignalScope(prev.signal, next.signal)
+        const listener = addPrev.mock.calls[0][1] as EventListener
+
+        scope.cleanup()
+        listener.call(prev.signal, new Event('abort'))
+
+        expect(scope.signal?.aborted).toBe(false)
+    }))
+
+    it('fallback scope should handle a source aborting during listener registration', () => withoutAbortSignalAny(() => {
+        const prev = new AbortController()
+        const next = new AbortController()
+        vi.spyOn(next.signal, 'aborted', 'get')
+            .mockReturnValueOnce(false)
+            .mockReturnValueOnce(true)
+        const removePrev = vi.spyOn(prev.signal, 'removeEventListener')
+        const removeNext = vi.spyOn(next.signal, 'removeEventListener')
+
+        const scope = mergeAbortSignalScope(prev.signal, next.signal)
+
+        expect(scope.signal?.aborted).toBe(true)
+        expect(removePrev).toHaveBeenCalledOnce()
+        expect(removeNext).toHaveBeenCalledOnce()
+    }))
+
+    it('fallback scope should clean earlier listeners if registration throws', () => withoutAbortSignalAny(() => {
+        const prev = new AbortController()
+        const next = new AbortController()
+        const removePrev = vi.spyOn(prev.signal, 'removeEventListener')
+        const removeNext = vi.spyOn(next.signal, 'removeEventListener')
+        vi.spyOn(next.signal, 'addEventListener').mockImplementation(() => {
+            throw new Error('listener registration failed')
+        })
+
+        expect(() => mergeAbortSignalScope(prev.signal, next.signal)).toThrow(
+            'listener registration failed'
+        )
+        expect(removePrev).toHaveBeenCalledOnce()
+        expect(removeNext).not.toHaveBeenCalled()
+    }))
+
+    it('fallback scope should not register listeners for a duplicate or pre-aborted source', () => withoutAbortSignalAny(() => {
+        const duplicate = new AbortController()
+        const duplicateAdd = vi.spyOn(duplicate.signal, 'addEventListener')
+        const duplicateScope = mergeAbortSignalScope(duplicate.signal, duplicate.signal)
+        expect(duplicateScope.signal).toBe(duplicate.signal)
+        expect(duplicateAdd).not.toHaveBeenCalled()
+
+        const aborted = new AbortController()
+        const active = new AbortController()
+        const reason = new Error('already cancelled')
+        aborted.abort(reason)
+        const abortedAdd = vi.spyOn(aborted.signal, 'addEventListener')
+        const activeAdd = vi.spyOn(active.signal, 'addEventListener')
+        const abortedScope = mergeAbortSignalScope(aborted.signal, active.signal)
+
+        expect(abortedScope.signal?.aborted).toBe(true)
+        expect(abortedScope.signal?.reason).toBe(reason)
+        expect(abortedAdd).not.toHaveBeenCalled()
+        expect(activeAdd).not.toHaveBeenCalled()
+    }))
+
+    it('scope should preserve an explicit absent value without registering listeners', () => {
+        const scope = mergeAbortSignalScope(null, null)
+        expect(scope.signal).toBeNull()
+        expect(scope.cleanup()).toBeUndefined()
+    })
 })
 
 describe('mergeConfig', () => {
@@ -455,6 +563,30 @@ describe('mergeConfig', () => {
         second.abort()
         expect(result.signal?.aborted).toBe(true)
     })
+
+    it('fallback config scope should expose an explicitly disposable merged signal', () => withoutAbortSignalAny(() => {
+        const first = new AbortController()
+        const second = new AbortController()
+        const removeFirst = vi.spyOn(first.signal, 'removeEventListener')
+        const removeSecond = vi.spyOn(second.signal, 'removeEventListener')
+        const scope = mergeConfigScope({signal: first.signal}, {signal: second.signal})
+
+        expect(scope.config.signal?.aborted).toBe(false)
+        scope.cleanup()
+
+        expect(removeFirst).toHaveBeenCalledOnce()
+        expect(removeSecond).toHaveBeenCalledOnce()
+    }))
+
+    it('legacy config merge should reject an unowned fallback signal composition', () => withoutAbortSignalAny(() => {
+        const first = new AbortController()
+        const second = new AbortController()
+
+        expect(() => mergeConfig(
+            {signal: first.signal},
+            {signal: second.signal}
+        )).toThrow('use mergeAbortSignalScope() or mergeConfigScope()')
+    }))
 })
 
 describe('catchCommonError', () => {

@@ -6,11 +6,11 @@
 | --- | --- |
 | 被测项目 | `@canlooks/ajax` |
 | 被测版本 | `5.0.6` |
-| 文档版本 | `1.1` |
-| 编制日期 | 2026-08-29 |
+| 文档版本 | `1.3` |
+| 编制日期 | 2026-08-31 |
 | 测试类型 | 单元测试、组件集成测试、API 契约测试、类型声明测试、构建验证 |
 | 自动化框架 | Vitest 4.1.6 + vitest-fetch-mock + V8 Coverage |
-| 当前基线 | 主套件 208 条、原生 HTTP 集成 2 条全部通过；expected-fail 为 0 |
+| 当前基线 | 主套件 226 条、原生 HTTP 集成 2 条全部通过；expected-fail 为 0 |
 
 ## 2. 项目功能与用途
 
@@ -124,10 +124,10 @@ V8 Coverage 对 `src/**/*.ts` 统计覆盖率。门槛如下：
 
 | 指标 | CI 最低门槛 | 当前结果 |
 | --- | ---: | ---: |
-| Statements | 100% | 100%（238/238） |
-| Branches | 99% | 99.29%（140/141） |
-| Functions | 100% | 100%（51/51） |
-| Lines | 100% | 100%（229/229） |
+| Statements | 100% | 100%（327/327） |
+| Branches | 99% | 99.45%（184/185） |
+| Functions | 100% | 100%（67/67） |
+| Lines | 100% | 100%（314/314） |
 
 唯一未覆盖分支位于 `ajaxInstance.ts` 的防御性回退：正常 `core` 契约总会返回响应对象，现有可达路径无法令该值为 `undefined`。不使用人为 mock 内部模块来换取无业务意义的 100% 分支数字。
 
@@ -215,11 +215,14 @@ npm run test:release
 | UTL-009 | http/https/协议相对绝对 URL | 新绝对 URL 替换 base | `utility.spec.ts` |
 | UTL-010 | 参数对象、字符串、pair 数组、URLSearchParams | 正确构造 URLSearchParams | `utility.spec.ts` |
 | UTL-011 | 参数/header 冲突、重复 key | 后值覆盖，非冲突项保留 | `utility.spec.ts` |
-| UTL-012 | 合并参数/header | 不修改 prev；按契约处理 next 实例 | `utility.spec.ts` |
+| UTL-012 | 合并参数/header | 不修改 prev；next 标准实例等值复制且不共享引用 | `utility.spec.ts` |
 | UTL-013 | 无 signal、单 signal、双 signal | 保留空值/原 signal，任一源中断可传播 | `utility.spec.ts` |
 | UTL-014 | 0、1、2、多份 config 及 undefined | 无入参报错；其余正确归一化合并 | `utility.spec.ts` |
 | UTL-015 | config 中 URL、参数、header、signal、falsy scalar | 分字段遵循各自合并/覆盖规则 | `utility.spec.ts` |
 | UTL-016 | AjaxError、Error、原始拒绝值 | AjaxError 原样返回，其余按消息包装 | `utility.spec.ts` |
+| UTL-017 | 缺少 `AbortSignal.any` 的双活跃 signal | 裸 merge 明确报错；scoped merge 传播 reason 并支持幂等 cleanup | `utility.spec.ts` |
+| UTL-018 | 重复、预取消、注册竞争和注册异常 | 不产生多余 listener，异常路径清理已注册 listener | `utility.spec.ts` |
+| UTL-019 | `mergeConfigScope` 合并多个 signal | 返回完整 config 和可显式释放的 cleanup | `utility.spec.ts` |
 
 ### 9.2 核心请求、响应与错误
 
@@ -257,6 +260,7 @@ npm run test:release
 | TIME-005 | 外部取消先于 timeout | 最终错误为 AbortError | `timeout-abort.spec.ts` |
 | TIME-006 | timeout 先于外部取消 | 最终错误为 TimeoutError | `timeout-abort.spec.ts` |
 | TIME-007 | fetch 自身抛 DOMException AbortError | 归为 NetworkError，而非伪造用户取消 | `timeout-abort.spec.ts` |
+| TIME-008 | fallback 组合 signal 后 fetch 拒绝或 timeout | 源 signal listener 在最终拒绝前后全部清理 | `timeout-abort.spec.ts` |
 | UPL-001 | FormData 含多个 Blob | 回调累计 loaded、total、chunk 正确 | `progress.spec.ts` |
 | UPL-002 | 对象中嵌套 ArrayBuffer | 发现并报告完整字节数 | `progress.spec.ts` |
 | UPL-003 | body 无二进制项 | 不调用上传进度回调 | `progress.spec.ts` |
@@ -297,16 +301,19 @@ npm run test:release
 
 | 编号 | 场景与输入 | 预期结果 | 自动化位置 |
 | --- | --- | --- | --- |
-| INS-001 | 默认 singleton 结构 | 可调用，暴露配置、factory、sets 和 7 个别名 | `ajax-instance.spec.ts` |
+| INS-001 | 默认 singleton 结构 | 可调用，暴露用于查看的配置快照、factory、sets 和 7 个别名 | `ajax-instance.spec.ts` |
 | INS-002 | parent.create(child config) | 得到独立、完整归一化的配置快照 | `ajax-instance.spec.ts` |
 | INS-003 | 多级 create URL | URL 范围逐级拼接 | `ajax-instance.spec.ts` |
 | INS-004 | 实例默认值 + 单次 config | 参数/header/URL 按优先级合并 | `ajax-instance.spec.ts` |
 | INS-005 | 单次绝对 URL | 替换全部继承 URL | `ajax-instance.spec.ts` |
 | INS-006 | 创建子实例时已有拦截器 | 子实例复制 Set 内容而非共享 Set | `ajax-instance.spec.ts` |
 | INS-007 | 创建后父子分别增删拦截器 | 双向隔离 | `ajax-instance.spec.ts` |
-| INS-008 | 创建后修改原始 config 对象 | 实例仍使用创建时快照 | `ajax-instance.spec.ts` |
-| INS-009 | create() 空配置 | 生成可用的归一化配置 | `ajax-instance.spec.ts` |
-| INS-010 | 同实例并发请求 | resolved config 对象相互独立 | `ajax-instance.spec.ts` |
+| INS-008 | 从 singleton 创建后修改原始 config、Headers、URLSearchParams | 实例仍使用创建时的值，且标准对象不共享引用 | `ajax-instance.spec.ts` |
+| INS-009 | 从 child 创建后修改输入 Headers、URLSearchParams | 子实例仍使用创建时快照 | `ajax-instance.spec.ts` |
+| INS-010 | create() 空配置 | 生成可用的归一化配置 | `ajax-instance.spec.ts` |
+| INS-011 | 同实例并发读取配置快照 | resolved config 及其 params/headers 相互独立 | `ajax-instance.spec.ts` |
+| INS-012 | 缺少 `AbortSignal.any` 时创建 25 个父子实例 | 创建阶段不注册 listener；25 次正常请求 add/remove 平衡 | `ajax-instance.spec.ts` |
+| INS-013 | 请求拦截器抛错、前一请求已完成后再次请求 | finally 清理 listener，后续请求创建全新且可取消的 scope | `ajax-instance.spec.ts` |
 | MOD-001 | Service 结构与 7 个静态别名 | 方法、URL 和 body 委托正确 | `module.spec.ts` |
 | MOD-002 | @Config 本地配置 | 保存 config，创建独立 ajax，resolvedConfig 正确 | `module.spec.ts` |
 | MOD-003 | 多级 Service 继承 | URL、params、headers、scalar 正确合并 | `module.spec.ts` |
@@ -317,12 +324,15 @@ npm run test:release
 | MOD-008 | 无效非函数 descriptor | 防御性忽略，不注册拦截器 | `module.spec.ts` |
 | MOD-009 | 服务默认参数/header + endpoint 覆盖 | 按优先级合并 | `module.spec.ts` |
 | MOD-010 | endpoint 使用绝对 URL | 替换服务 URL | `module.spec.ts` |
+| MOD-011 | Service 多级配置继承 signal | 装饰/创建阶段不监听，请求完成后释放继承 signal listener | `module.spec.ts` |
 | API-001 | `src/index.ts` 导出集合 | 所有文档化运行时成员均存在 | `public-api.spec.ts` |
 | API-002 | barrel export 对象身份 | singleton、class、utility 不被重复创建 | `public-api.spec.ts` |
 | API-003 | 仅从公开入口发请求 | 泛型结果与运行时行为正确 | `public-api.spec.ts` |
+| API-004 | scoped signal/config 工具公开导出 | 函数、signal/config 与 cleanup 均可从 barrel 使用 | `public-api.spec.ts` |
 | TYP-001 | AjaxConfig、AjaxReturn、泛型别名、create | 正确代码通过 tsc | `public-api.typecheck.ts` |
 | TYP-002 | request/response interceptor 类型 | 可加入对应 Set | `public-api.typecheck.ts` |
 | TYP-003 | 非法 responseType 和 method | 必须产生 TypeScript 错误 | `public-api.typecheck.ts` |
+| TYP-004 | `AbortSignalScope`、`ConfigScope` | 公开函数返回类型可被消费者直接声明和使用 | `public-api.typecheck.ts` |
 | INT-001 | 原生 HTTP server 接收 `ajax.patch` | 服务端收到大写 PATCH 与正确 body | `integration/http-method.spec.ts` |
 | INT-002 | 已取消 signal 调用原生 HTTP endpoint | Promise 返回 AbortError，服务端请求计数不增加 | `integration/http-method.spec.ts` |
 | PKG-001 | 安装真实 npm tarball | ESM、CommonJS 命名导出及 TypeScript 类型均可消费 | `package-consumers.mjs` |
@@ -337,11 +347,12 @@ npm run test:release
 | AJX-002 | 成功、HTTP/Fetch/解析/进度失败均在 finally 清理 timer 与 listener | `known-issues.spec.ts`、`timeout-abort.spec.ts`、`progress.spec.ts` |
 | AJX-003 | 无 Content-Length 的 arrayBuffer/blob 回退到原生解析，不泄漏 TypeError | `known-issues.spec.ts`、`progress.spec.ts` |
 | AJX-004 | Service 泛型方法返回 `AjaxReturn<T>`，声明由源码生成 | `public-api.typecheck.ts`、`package-consumers.mjs` |
+| AJX-108 | fallback signal 只在请求生命周期注册 listener；所有正常、失败、取消、超时和拦截器错误路径均显式 cleanup | `utility.spec.ts`、`ajax-instance.spec.ts`、`timeout-abort.spec.ts`、`module.spec.ts` |
 | NEW-001 | ESM 内部引用带 `.js` 且有明确模块边界 | `package-consumers.mjs` |
 | NEW-002 | alias 和传输边界均规范化大写方法 | `core.spec.ts`、`integration/http-method.spec.ts` |
 | NEW-003 | ajax 明确为仅命名导出，运行时、类型和文档一致 | `public-api.spec.ts`、`package-consumers.mjs` |
 
-上述 7 项缺陷均已修复；旧版 `5.0.5` 测试报告作为历史证据保留，不回写结论。
+上述 8 项缺陷均已修复；历史测试报告作为原始证据保留，不回写结论。
 
 ## 11. 验收标准
 
@@ -390,19 +401,19 @@ npm run test:release
 
 ## 14. 当前执行结果
 
-2026-08-29 在第 7 节环境执行：
+2026-08-31 在第 7 节环境执行：
 
 | 检查项 | 结果 |
 | --- | --- |
 | `npm run build` | 通过 |
 | `npm run test:typecheck` | 通过（AJX-004 类型缺陷守卫已移除） |
 | `npm test` / coverage run | 10 个测试文件通过 |
-| 主套件普通用例 | 208/208 通过 |
+| 主套件普通用例 | 226/226 通过 |
 | 原生 HTTP 集成 | 2/2 通过 |
 | 已登记 expected-fail | 0 |
-| 总自动化运行时用例 | 210 |
+| 总自动化运行时用例 | 228 |
 | Statements / Functions / Lines | 100% / 100% / 100% |
-| Branches | 99.38% |
+| Branches | 99.45% |
 | ESM / CommonJS / TypeScript tarball 消费 | 全部通过 |
 | 非预期失败 | 0 |
 
@@ -414,7 +425,7 @@ npm run test:release
 | Vitest 配置与覆盖率门槛 | `test/vitest.config.ts` |
 | TypeScript 测试配置 | `test/tsconfig.json` |
 | 全局测试隔离设置 | `test/setup.ts` |
-| fetch/stream 测试辅助函数 | `test/helpers/fetch.ts` |
+| fetch/stream/signal 测试辅助函数 | `test/helpers/fetch.ts`、`test/helpers/abort.ts` |
 | 自动化运行时用例 | `test/suites/*.spec.ts`，共 10 个文件 |
 | 公共类型契约用例 | `test/types/public-api.typecheck.ts` |
 | HTML 覆盖率报告 | 执行后生成于 `test/coverage/index.html`（不提交） |

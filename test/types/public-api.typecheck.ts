@@ -18,6 +18,16 @@ const getRequest: Ajax.AjaxReturn<User> = Ajax.ajax.get<User>('/users/1')
 const postRequest: Ajax.AjaxReturn<User> = Ajax.ajax.post<User>('/users', {name: 'Alice'})
 const child: Ajax.Ajax = Ajax.ajax.create({url: 'https://api.example.com/v1'})
 const resolved: Ajax.ResolvedConfig = Ajax.mergeConfig(config, {headers: {'x-test': 'yes'}})
+const firstController = new AbortController()
+const secondController = new AbortController()
+const signalScope: Ajax.AbortSignalScope = Ajax.mergeAbortSignalScope(
+    firstController.signal,
+    secondController.signal
+)
+const configScope: Ajax.ConfigScope = Ajax.mergeConfigScope(
+    {signal: firstController.signal},
+    {signal: secondController.signal}
+)
 
 const serviceRequest: Promise<Ajax.AjaxResponse<User>> = Ajax.Service.get<User>('/users/1')
 const servicePostRequest: Ajax.AjaxReturn<User> = Ajax.Service.post<User>('/users', {name: 'Alice'})
@@ -35,6 +45,10 @@ void serviceRequest
 void servicePostRequest
 void servicePatchRequest
 void resolved
+void signalScope.signal
+void signalScope.cleanup
+void configScope.config
+void configScope.cleanup
 
 // @ts-expect-error unsupported response parser
 const badResponseType: Ajax.AjaxConfig = {responseType: 'xml'}

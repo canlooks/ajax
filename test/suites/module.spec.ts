@@ -1,6 +1,7 @@
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it, vi} from 'vitest'
 import type {ResolvedConfig} from '../../src'
 import {Config, RequestInterceptor, ResponseInterceptor, Service} from '../../src/module'
+import {withoutAbortSignalAny} from '../helpers/abort'
 import {fetchInit, fetchUrl, mockJson} from '../helpers/fetch'
 
 describe('Service base class', () => {
@@ -100,6 +101,31 @@ describe('@Config', () => {
         class UserApi extends AdminApi {}
 
         expect(UserApi.resolvedConfig.url).toBe('https://api.example.com/v1/admin/users')
+    })
+
+    it('defers inherited signal composition until a service request and then cleans it', async () => {
+        await withoutAbortSignalAny(async () => {
+            const parentController = new AbortController()
+            const childController = new AbortController()
+            const addParent = vi.spyOn(parentController.signal, 'addEventListener')
+            const removeParent = vi.spyOn(parentController.signal, 'removeEventListener')
+
+            @Config({
+                url: 'https://api.example.com/v1',
+                signal: parentController.signal
+            })
+            class BaseApi extends Service {}
+
+            @Config({url: '/users', signal: childController.signal})
+            class UserApi extends BaseApi {}
+
+            expect(addParent).not.toHaveBeenCalled()
+            mockJson({ok: true})
+            await UserApi.get('/1', {timeout: 0})
+
+            expect(addParent).toHaveBeenCalledOnce()
+            expect(removeParent).toHaveBeenCalledOnce()
+        })
     })
 })
 

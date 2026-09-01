@@ -7,28 +7,44 @@ import type {
     ResolvedConfig,
     ResponseInterceptorType
 } from './types.js'
-import {mergeConfig} from './utility.js'
+import {createAbortSignalScope} from './abortSignal.js'
+import {
+    createInstanceDefaults,
+    resolveRequestConfig,
+    type InstanceDefaults
+} from './config.js'
 
 export const ajax = createInstance()
 
 function createInstance(
-    parentConfig: AjaxConfig = {},
+    defaults: InstanceDefaults = {config: {}, signals: []},
     requestInterceptor = new Set<RequestInterceptorType>(),
     responseInterceptor = new Set<ResponseInterceptorType>()
 ) {
-    const ajaxInstance = (async (config: AjaxConfig) => {
-        config = await enforceRequestInterceptors(mergeConfig(parentConfig, config))
-        let res
-        try {
-            res = await core(config as ResolvedConfig)
-        } catch (e) {
-            return await enforceResponseInterceptors(null, e, config as ResolvedConfig, false)
+    const ajaxInstance = (async (requestConfig: AjaxConfig = {}) => {
+        const requestDefaults = resolveRequestConfig(defaults, requestConfig)
+        const signalScope = createAbortSignalScope(...requestDefaults.signals)
+        let config: ResolvedConfig = {
+            ...requestDefaults.config,
+            signal: signalScope.signal
         }
-        const returnValue = await enforceResponseInterceptors(res, null, config as ResolvedConfig, true)
-        return typeof returnValue === 'undefined' ? res : returnValue
+
+        try {
+            config = await enforceRequestInterceptors(config)
+            let res
+            try {
+                res = await core(config)
+            } catch (e) {
+                return await enforceResponseInterceptors(null, e, config, false)
+            }
+            const returnValue = await enforceResponseInterceptors(res, null, config, true)
+            return typeof returnValue === 'undefined' ? res : returnValue
+        } finally {
+            signalScope.cleanup()
+        }
     }) as Ajax
 
-    ajaxInstance.config = parentConfig
+    ajaxInstance.config = defaults.config
 
     /**
      * ------------------------------------------------------------------
@@ -44,7 +60,7 @@ function createInstance(
      */
 
     ajaxInstance.create = (config?: AjaxConfig) => createInstance(
-        mergeConfig(parentConfig, config),
+        createInstanceDefaults(defaults, config),
         new Set(requestInterceptor),
         new Set(responseInterceptor)
     )

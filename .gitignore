@@ -4,6 +4,9 @@ dist
 coverage
 test/coverage
 
+# test reports
+test/test-reports
+
 # local env files
 .env.local
 .env.*.local

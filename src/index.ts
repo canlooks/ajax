@@ -1,4 +1,5 @@
 export * from './types.js'
+export * from './abortSignal.js'
 export * from './ajaxInstance.js'
 export * from './core.js'
 export * from './error.js'

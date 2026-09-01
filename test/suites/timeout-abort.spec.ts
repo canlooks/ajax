@@ -1,6 +1,7 @@
 import {describe, expect, it, vi} from 'vitest'
 import {ajax} from '../../src/ajaxInstance'
 import {AbortError, AjaxError, NetworkError, TimeoutError} from '../../src/error'
+import {withoutAbortSignalAny} from '../helpers/abort'
 import {fetchInit, mockJson, mockPendingUntilAbort} from '../helpers/fetch'
 
 describe('timeout and cancellation', () => {
@@ -32,6 +33,28 @@ describe('timeout and cancellation', () => {
             .rejects.toBeInstanceOf(NetworkError)
 
         expect(vi.getTimerCount()).toBe(0)
+    })
+
+    it('cleans fallback source listeners when fetch rejects', async () => {
+        await withoutAbortSignalAny(async () => {
+            const parentController = new AbortController()
+            const requestController = new AbortController()
+            const removeParent = vi.spyOn(parentController.signal, 'removeEventListener')
+            const removeRequest = vi.spyOn(requestController.signal, 'removeEventListener')
+            const instance = ajax.create({
+                url: 'https://api.example.com',
+                signal: parentController.signal
+            })
+            fetchMock.mockRejectedValueOnce(new TypeError('offline'))
+
+            await expect(instance.get('/data', {
+                signal: requestController.signal,
+                timeout: 0
+            })).rejects.toBeInstanceOf(NetworkError)
+
+            expect(removeParent).toHaveBeenCalledOnce()
+            expect(removeRequest).toHaveBeenCalledOnce()
+        })
     })
 
     it('clears the timeout when response parsing rejects', async () => {
@@ -114,6 +137,32 @@ describe('timeout and cancellation', () => {
         controller.abort()
 
         expect(fetchInit().signal?.reason).toBeInstanceOf(TimeoutError)
+    })
+
+    it('cleans fallback source listeners when the timeout wins', async () => {
+        await withoutAbortSignalAny(async () => {
+            vi.useFakeTimers()
+            const parentController = new AbortController()
+            const requestController = new AbortController()
+            const removeParent = vi.spyOn(parentController.signal, 'removeEventListener')
+            const removeRequest = vi.spyOn(requestController.signal, 'removeEventListener')
+            const instance = ajax.create({
+                url: 'https://api.example.com',
+                signal: parentController.signal
+            })
+            mockPendingUntilAbort()
+            const request = instance.get('/slow', {
+                signal: requestController.signal,
+                timeout: 20
+            })
+            const rejection = expect(request).rejects.toBeInstanceOf(TimeoutError)
+
+            await vi.advanceTimersByTimeAsync(20)
+            await rejection
+
+            expect(removeParent).toHaveBeenCalledOnce()
+            expect(removeRequest).toHaveBeenCalledOnce()
+        })
     })
 
     it('wraps an unrelated AbortError-style fetch rejection as NetworkError', async () => {

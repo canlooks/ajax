@@ -26,6 +26,9 @@ describe('public source entry point', () => {
             mergeParams: expect.any(Function),
             mergeHeaders: expect.any(Function),
             mergeAbortSignal: expect.any(Function),
+            createAbortSignalScope: expect.any(Function),
+            mergeAbortSignalScope: expect.any(Function),
+            mergeConfigScope: expect.any(Function),
             catchCommonError: expect.any(Function)
         }))
         expect(publicApi).not.toHaveProperty('default')
@@ -36,6 +39,23 @@ describe('public source entry point', () => {
         expect(publicApi.AjaxError).toBe(AjaxError)
         expect(publicApi.Service).toBe(Service)
         expect(publicApi.mergeConfig).toBe(mergeConfig)
+    })
+
+    it('exposes disposable signal and config scopes through the public entry point', () => {
+        const first = new AbortController()
+        const second = new AbortController()
+        const signalScope = publicApi.mergeAbortSignalScope(first.signal, second.signal)
+        const configScope = publicApi.mergeConfigScope(
+            {signal: first.signal},
+            {signal: second.signal}
+        )
+
+        expect(signalScope.signal).toBeInstanceOf(AbortSignal)
+        expect(signalScope.cleanup).toEqual(expect.any(Function))
+        expect(configScope.config.signal).toBeInstanceOf(AbortSignal)
+        expect(configScope.cleanup).toEqual(expect.any(Function))
+        signalScope.cleanup()
+        configScope.cleanup()
     })
 
     it('supports a request using only the public entry point', async () => {

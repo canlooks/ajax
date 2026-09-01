@@ -6,7 +6,7 @@ import type {
     ResponseInterceptorType
 } from './types.js'
 import {ajax} from './ajaxInstance.js'
-import {mergeConfig} from './utility.js'
+import {mergeConfigFields} from './config.js'
 
 export class Service {
     static config: AjaxConfig = {}
@@ -23,19 +23,19 @@ export class Service {
      */
 
     static get<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
-        return this.ajax<T>(mergeConfig(config, {url, method: 'GET'}))
+        return this.ajax<T>(mergeConfigFields(config, {url, method: 'GET'}))
     }
 
     static delete<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
-        return this.ajax<T>(mergeConfig(config, {url, method: 'DELETE'}))
+        return this.ajax<T>(mergeConfigFields(config, {url, method: 'DELETE'}))
     }
 
     static head<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
-        return this.ajax<T>(mergeConfig(config, {url, method: 'HEAD'}))
+        return this.ajax<T>(mergeConfigFields(config, {url, method: 'HEAD'}))
     }
 
     static options<T = any>(url: string, config: AjaxConfig = {}): AjaxReturn<T> {
-        return this.ajax<T>(mergeConfig(config, {url, method: 'OPTIONS'}))
+        return this.ajax<T>(mergeConfigFields(config, {url, method: 'OPTIONS'}))
     }
 
     /**
@@ -44,15 +44,15 @@ export class Service {
      */
 
     static post<T = any>(url: string, body?: any, config: AjaxConfig = {}): AjaxReturn<T> {
-        return this.ajax<T>(mergeConfig(config, {url, body, method: 'POST'}))
+        return this.ajax<T>(mergeConfigFields(config, {url, body, method: 'POST'}))
     }
 
     static put<T = any>(url: string, body?: any, config: AjaxConfig = {}): AjaxReturn<T> {
-        return this.ajax<T>(mergeConfig(config, {url, body, method: 'PUT'}))
+        return this.ajax<T>(mergeConfigFields(config, {url, body, method: 'PUT'}))
     }
 
     static patch<T = any>(url: string, body?: any, config: AjaxConfig = {}): AjaxReturn<T> {
-        return this.ajax<T>(mergeConfig(config, {url, body, method: 'PATCH'}))
+        return this.ajax<T>(mergeConfigFields(config, {url, body, method: 'PATCH'}))
     }
 }
 

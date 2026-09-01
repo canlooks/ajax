@@ -1,6 +1,8 @@
 import {describe, expect, it, vi} from 'vitest'
 import {ajax} from '../../src/ajaxInstance'
-import {fetchInit, fetchUrl, mockJson} from '../helpers/fetch'
+import {AbortError} from '../../src/error'
+import {withoutAbortSignalAny} from '../helpers/abort'
+import {fetchInit, fetchUrl, mockJson, mockPendingUntilAbort} from '../helpers/fetch'
 
 describe('ajax instance', () => {
     it('is callable and exposes configuration, factories, interceptor sets and aliases', () => {
@@ -104,21 +106,46 @@ describe('ajax instance', () => {
         expect(parent.requestInterceptor.has(childOnly)).toBe(false)
     })
 
-    it('captures an independent normalized config snapshot at creation time', async () => {
+    it('copies mutable standard inputs when creating from the singleton', async () => {
         mockJson({ok: true})
-        const config = {url: 'https://api.example.com', headers: {'x-version': '1'}}
+        const headers = new Headers({'x-version': '1'})
+        const params = new URLSearchParams({locale: 'en'})
+        const config = {url: 'https://api.example.com', headers, params}
         const instance = ajax.create(config)
+
         config.url = 'https://api.example.com/v2'
+        headers.set('x-version', '2')
+        params.set('locale', 'zh')
 
         await instance.get('/items', {timeout: 0})
 
         expect(instance.config).not.toBe(config)
-        expect(instance.config).toEqual(expect.objectContaining({
+        expect(instance.config.headers).not.toBe(headers)
+        expect(instance.config.params).not.toBe(params)
+        expect((instance.config.headers as Headers).get('x-version')).toBe('1')
+        expect((instance.config.params as URLSearchParams).get('locale')).toBe('en')
+        expect(fetchUrl()).toBe('https://api.example.com/items?locale=en')
+        expect((fetchInit().headers as Headers).get('x-version')).toBe('1')
+    })
+
+    it('copies mutable standard inputs when creating from a child instance', () => {
+        const parent = ajax.create({
             url: 'https://api.example.com',
-            params: expect.any(URLSearchParams),
-            headers: expect.any(Headers)
-        }))
-        expect(fetchUrl()).toBe('https://api.example.com/items')
+            headers: {'x-parent': 'yes'},
+            params: {scope: 'parent'}
+        })
+        const headers = new Headers({'x-child': 'yes'})
+        const params = new URLSearchParams({scope: 'child'})
+        const child = parent.create({headers, params})
+
+        headers.set('x-child', 'changed')
+        params.set('scope', 'changed')
+
+        expect(child.config.headers).not.toBe(headers)
+        expect(child.config.params).not.toBe(params)
+        expect((child.config.headers as Headers).get('x-parent')).toBe('yes')
+        expect((child.config.headers as Headers).get('x-child')).toBe('yes')
+        expect((child.config.params as URLSearchParams).get('scope')).toBe('child')
     })
 
     it('handles create() without a config', async () => {
@@ -133,12 +160,16 @@ describe('ajax instance', () => {
         }))
     })
 
-    it('supports concurrent requests without sharing resolved request configs', async () => {
+    it('supports concurrent snapshot reads without sharing resolved request configs', async () => {
         fetchMock.mockResponses(
             [JSON.stringify({id: 1}), {headers: {'content-type': 'application/json'}}],
             [JSON.stringify({id: 2}), {headers: {'content-type': 'application/json'}}]
         )
-        const instance = ajax.create({url: 'https://api.example.com'})
+        const headers = new Headers({'x-version': '1'})
+        const params = new URLSearchParams({locale: 'en'})
+        const instance = ajax.create({url: 'https://api.example.com', headers, params})
+        headers.set('x-version', '2')
+        params.set('locale', 'zh')
         const observe = vi.fn((config: any) => config)
         instance.requestInterceptor.add(observe)
 
@@ -148,8 +179,98 @@ describe('ajax instance', () => {
         ])
 
         expect(first.config).not.toBe(second.config)
+        expect(first.config.headers).not.toBe(second.config.headers)
+        expect(first.config.params).not.toBe(second.config.params)
         expect(first.config.url).toBe('https://api.example.com/first')
         expect(second.config.url).toBe('https://api.example.com/second')
+        expect(first.config.headers.get('x-version')).toBe('1')
+        expect(second.config.headers.get('x-version')).toBe('1')
+        expect(first.config.params.get('locale')).toBe('en')
+        expect(second.config.params.get('locale')).toBe('en')
         expect(observe).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not register fallback listeners while creating instances and cleans every normal request', async () => {
+        await withoutAbortSignalAny(async () => {
+            const parentController = new AbortController()
+            const addParent = vi.spyOn(parentController.signal, 'addEventListener')
+            const removeParent = vi.spyOn(parentController.signal, 'removeEventListener')
+            const parent = ajax.create({
+                url: 'https://api.example.com',
+                signal: parentController.signal
+            })
+            const children = Array.from({length: 25}, () => {
+                const childController = new AbortController()
+                return parent.create({signal: childController.signal})
+            })
+
+            expect(addParent).not.toHaveBeenCalled()
+
+            for (const [index, child] of children.entries()) {
+                mockJson({index})
+                await child.get(`/items/${index}`, {timeout: 0})
+            }
+
+            expect(addParent).toHaveBeenCalledTimes(25)
+            expect(removeParent).toHaveBeenCalledTimes(25)
+        })
+    })
+
+    it('cleans fallback listeners when a request interceptor throws before core', async () => {
+        await withoutAbortSignalAny(async () => {
+            const parentController = new AbortController()
+            const requestController = new AbortController()
+            const removeParent = vi.spyOn(parentController.signal, 'removeEventListener')
+            const removeRequest = vi.spyOn(requestController.signal, 'removeEventListener')
+            const instance = ajax.create({
+                url: 'https://api.example.com',
+                signal: parentController.signal
+            })
+            instance.requestInterceptor.add(() => {
+                throw new Error('interceptor failed')
+            })
+
+            await expect(instance.get('/items', {
+                signal: requestController.signal,
+                timeout: 0
+            })).rejects.toThrow('interceptor failed')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+            expect(removeParent).toHaveBeenCalledOnce()
+            expect(removeRequest).toHaveBeenCalledOnce()
+        })
+    })
+
+    it('creates a fresh fallback scope after a previous request was cleaned up', async () => {
+        await withoutAbortSignalAny(async () => {
+            const parentController = new AbortController()
+            const firstRequestController = new AbortController()
+            const secondRequestController = new AbortController()
+            const addParent = vi.spyOn(parentController.signal, 'addEventListener')
+            const removeParent = vi.spyOn(parentController.signal, 'removeEventListener')
+            const instance = ajax.create({
+                url: 'https://api.example.com',
+                signal: parentController.signal
+            })
+
+            mockJson({ok: true})
+            await instance.get('/first', {
+                signal: firstRequestController.signal,
+                timeout: 0
+            })
+
+            mockPendingUntilAbort()
+            const request = instance.get('/second', {
+                signal: secondRequestController.signal,
+                timeout: 0
+            })
+            const rejection = expect(request).rejects.toBeInstanceOf(AbortError)
+            await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+            secondRequestController.abort(new Error('cancel second request'))
+
+            await rejection
+            expect(addParent).toHaveBeenCalledTimes(2)
+            expect(removeParent).toHaveBeenCalledTimes(2)
+        })
     })
 })

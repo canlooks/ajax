@@ -69,7 +69,7 @@ try {
     await writeFile(path.join(consumerRoot, 'esm.mjs'), `
 import * as pkg from '@canlooks/ajax'
 
-for (const name of ['ajax', 'Service', 'Config', 'AjaxError']) {
+for (const name of ['ajax', 'Service', 'Config', 'AjaxError', 'mergeAbortSignalScope', 'mergeConfigScope']) {
   if (!(name in pkg)) throw new Error(\`Missing ESM named export: \${name}\`)
 }
 if ('default' in pkg) throw new Error('Unexpected ESM default export')
@@ -78,7 +78,7 @@ if ('default' in pkg) throw new Error('Unexpected ESM default export')
     await writeFile(path.join(consumerRoot, 'commonjs.cjs'), `
 const pkg = require('@canlooks/ajax')
 
-for (const name of ['ajax', 'Service', 'Config', 'AjaxError']) {
+for (const name of ['ajax', 'Service', 'Config', 'AjaxError', 'mergeAbortSignalScope', 'mergeConfigScope']) {
   if (!(name in pkg)) throw new Error(\`Missing CommonJS named export: \${name}\`)
 }
 if ('default' in pkg) throw new Error('Unexpected CommonJS default export')
@@ -88,19 +88,27 @@ if ('default' in pkg) throw new Error('Unexpected CommonJS default export')
     run(process.execPath, ['commonjs.cjs'], consumerRoot)
 
     await writeFile(path.join(consumerRoot, 'consumer.ts'), `
-import {ajax, Service} from '@canlooks/ajax'
-import type {AjaxResponse, AjaxReturn} from '@canlooks/ajax'
+import {ajax, Service, mergeAbortSignalScope} from '@canlooks/ajax'
+import type {AbortSignalScope, AjaxResponse, AjaxReturn} from '@canlooks/ajax'
 
 type User = {id: number}
 
 const ajaxRequest: AjaxReturn<User> = ajax.get<User>('/users/1')
 const serviceRequest: Promise<AjaxResponse<User>> = Service.get<User>('/users/1')
+const firstController = new AbortController()
+const secondController = new AbortController()
+const signalScope: AbortSignalScope = mergeAbortSignalScope(
+  firstController.signal,
+  secondController.signal
+)
 
 // @ts-expect-error @canlooks/ajax intentionally exposes named exports only
 import defaultAjax from '@canlooks/ajax'
 
 void ajaxRequest
 void serviceRequest
+void signalScope.signal
+void signalScope.cleanup
 void defaultAjax
 `, 'utf8')
     await writeJson(path.join(consumerRoot, 'tsconfig.json'), {

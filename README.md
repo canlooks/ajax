@@ -482,9 +482,13 @@ api.requestInterceptor.add(config => {
 const { result } = await api.get('/users')
 ```
 
+Configuration passed to `create()` is normalized and copied at creation time. Mutable `Headers` and `URLSearchParams` inputs are cloned, so changing the source objects later does not affect the instance. The exposed `.config` is the creation snapshot for inspection; it is not an in-place API for changing instance defaults. Create another instance when different defaults are needed.
+
+Abort signals are also captured at creation time, but inherited signals are not actively combined until a request starts. When several instance levels provide signals, `.config.signal` shows the most recently declared signal for inspection; the resolved request config receives the request-scoped combination of every inherited signal.
+
 ### Instance Inheritance
 
-Child instances **copy** their parent's config and interceptor sets at creation time. After creation, parent and child are independent — changes to one do not affect the other.
+Child instances **copy** their parent's config and interceptor sets at creation time. Later source-object mutations and interceptor-set changes do not cross the instance boundary.
 
 ```ts
 const parent = ajax.create({ url: 'https://api.example.com' })
@@ -569,7 +573,7 @@ try {
 }
 ```
 
-The external signal and the internal timeout signal are merged automatically — aborting either one cancels the request.
+Instance-level, request-level, and internal timeout cancellation are combined automatically — aborting any active source cancels the request. Signal listeners used by compatibility fallbacks are owned by that request and are released after success, failure, cancellation, timeout, or an interceptor error.
 
 ## URL & Params
 
@@ -653,7 +657,7 @@ class UserApi extends Service {
 // ESM
 import { ajax, Service, Config, RequestInterceptor, ResponseInterceptor } from '@canlooks/ajax'
 import { AjaxError, NetworkError, TimeoutError, AbortError } from '@canlooks/ajax'
-import type { AjaxConfig, AjaxResponse, ResolvedConfig } from '@canlooks/ajax'
+import type { AbortSignalScope, AjaxConfig, AjaxResponse, ConfigScope, ResolvedConfig } from '@canlooks/ajax'
 
 // CJS
 const { ajax, Service } = require('@canlooks/ajax')
@@ -665,14 +669,38 @@ The following utilities are exported and can be used directly:
 
 | Function | Description |
 |---|---|
-| `mergeConfig(...configs)` | Deep-merge multiple `AjaxConfig` objects into a `ResolvedConfig`. |
+| `mergeConfig(...configs)` | Merge multiple `AjaxConfig` objects into a `ResolvedConfig`; active multi-signal merges require native `AbortSignal.any`. |
+| `mergeConfigScope(...configs)` | Merge configs and return `{config, cleanup}` for an explicitly disposable multi-signal fallback. |
 | `mergeUrl(prev?, next?)` | Resolve a relative URL against a base URL. |
-| `mergeParams(prev?, next?)` | Merge params into a `URLSearchParams` instance. |
-| `mergeHeaders(prev?, next?)` | Merge headers into a `Headers` instance. |
-| `mergeAbortSignal(prev?, next?)` | Merge two `AbortSignal`s — either one aborting triggers both. |
+| `mergeParams(prev?, next?)` | Merge params into a new `URLSearchParams` instance. |
+| `mergeHeaders(prev?, next?)` | Merge headers into a new `Headers` instance. |
+| `mergeAbortSignal(prev?, next?)` | Merge two signals when native `AbortSignal.any` is available; without it, two distinct active signals require the scoped API. |
+| `mergeAbortSignalScope(prev?, next?)` | Return `{signal, cleanup}` and safely support runtimes without `AbortSignal.any`. |
+| `createAbortSignalScope(...signals)` | Create a disposable request-lifetime combination from any number of signals. |
 | `bodyTransform(body)` | Auto `JSON.stringify` plain objects; pass other body types through. |
 | `findBodyBlobs(body)` | Recursively find all `Blob` objects in a body (for progress tracking). |
 | `catchCommonError(e, newError)` | Wrap a non-`AjaxError` into an `AjaxError`. |
+
+When supporting a runtime without `AbortSignal.any`, use a scoped utility and always clean it up:
+
+```ts
+import { mergeAbortSignalScope } from '@canlooks/ajax'
+
+const controllerA = new AbortController()
+const controllerB = new AbortController()
+const { signal, cleanup } = mergeAbortSignalScope(
+  controllerA.signal,
+  controllerB.signal
+)
+
+try {
+  await fetch('/data', { signal })
+} finally {
+  cleanup()
+}
+```
+
+`cleanup()` is idempotent and only detaches compatibility listeners; it does not abort the merged signal. Normal `ajax` and `Service` requests manage this scope automatically.
 
 ## API Reference
 
@@ -685,7 +713,7 @@ interface Ajax {
   // Invoke directly
   <T = any>(config?: AjaxConfig): Promise<AjaxResponse<T>>
 
-  // Current config
+  // Normalized creation snapshot (for inspection)
   config: AjaxConfig
 
   // Create a child instance

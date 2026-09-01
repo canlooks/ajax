@@ -41,6 +41,18 @@ export interface ResolvedConfig extends Omit<AjaxConfig, 'url' | 'params' | 'hea
     headers: Headers
 }
 
+export type AbortSignalScope = {
+    signal: AbortSignal | null | undefined
+    /** 幂等地释放组合 signal 在源 signal 上注册的监听器。 */
+    cleanup(): void
+}
+
+export type ConfigScope = {
+    config: ResolvedConfig
+    /** 幂等地释放 config.signal 的组合监听器。 */
+    cleanup(): void
+}
+
 export type AjaxResponse<T> = {
     result: T
     response: Response

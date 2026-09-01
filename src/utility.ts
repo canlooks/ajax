@@ -1,5 +1,12 @@
-import type {AjaxConfig, ResolvedConfig} from './types.js'
+import type {AjaxConfig, ConfigScope, ResolvedConfig} from './types.js'
+import {createAbortSignalScope} from './abortSignal.js'
+import {
+    collectAbortSignals,
+    mergeConfigFields
+} from './config.js'
 import {AjaxError} from './error.js'
+
+export {mergeHeaders, mergeParams, mergeUrl} from './config.js'
 
 export function bodyTransform(body: BodyInit | null | undefined) {
     if (typeof body === 'object' && body !== null) {
@@ -56,73 +63,26 @@ export async function findBodyBlobs(body: any) {
  * @param config
  */
 export function mergeConfig(...config: (AjaxConfig | undefined)[]): ResolvedConfig {
-    if (config.length < 1) {
-        throw Error(`No config passed to "mergeConfig" method`)
-    }
-    const fn = (prev: AjaxConfig | undefined, next: AjaxConfig | undefined): ResolvedConfig => ({
-        ...prev,
-        ...next,
-        url: mergeUrl(prev?.url, next?.url),
-        params: mergeParams(prev?.params, next?.params),
-        headers: mergeHeaders(prev?.headers, next?.headers),
-        signal: mergeAbortSignal(prev?.signal, next?.signal)
-    })
-    if (config.length === 1) {
-        return fn(config[0], void 0)
-    }
-    return config.reduce(fn) as ResolvedConfig
+    const result = mergeConfigFields(...config)
+    const signals = collectAbortSignals(...config)
+    result.signal = mergeAbortSignalsWithoutLifecycle(signals)
+    return result
 }
 
-export function mergeUrl(prev?: string | URL, next?: string | URL): string | undefined {
-    if (prev instanceof URL) {
-        prev = prev.href
-    }
-    if (next instanceof URL) {
-        next = next.href
-    }
-    if (!prev) {
-        return next
-    }
-    if (!next) {
-        return prev
-    }
-    // next开头带协议，则抛弃prev，直接使用next
-    if (/^([a-z]+:)?\/\//i.test(next)) {
-        return next
-    }
-    // prev去掉末尾的'/'，next去掉开头的'/'
-    prev = prev.replace(/\/+$/, '')
-    next = next.replace(/^\/+/, '')
-
-    return `${prev}/${next}`
+/**
+ * 返回带显式 cleanup 的配置合并结果，适用于缺少 AbortSignal.any 的运行时。
+ */
+export function mergeConfigScope(...config: (AjaxConfig | undefined)[]): ConfigScope {
+    const result = mergeConfigFields(...config)
+    const scope = createAbortSignalScope(...collectAbortSignals(...config))
+    result.signal = scope.signal
+    return {config: result, cleanup: scope.cleanup}
 }
 
-export function mergeParams(prev: AjaxConfig['params'], next: AjaxConfig['params']): URLSearchParams {
-    return mergeParamsOrHeaders(URLSearchParams, prev, next)
-}
-
-export function mergeHeaders(prev?: HeadersInit, next?: HeadersInit): Headers {
-    return mergeParamsOrHeaders(Headers, prev, next)
-}
-
-function mergeParamsOrHeaders(objectClass: any, prev?: any, next?: any) {
-    // prev无论如何都要new，避免直接修改prev
-    const obj = new objectClass(prev)
-    if (!next) {
-        return obj
-    }
-    if (!(next instanceof objectClass)) {
-        next = new objectClass(next)
-    }
-    if (!prev) {
-        return next
-    }
-    for (const [name, value] of next) {
-        obj.set(name, value)
-    }
-    return obj
-}
-
+/**
+ * 合并两个 signal。缺少原生 AbortSignal.any 时，请改用 mergeAbortSignalScope。
+ * @deprecated 对需要兼容旧运行时的多 signal 场景，请使用带 cleanup 的 scoped API。
+ */
 export function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal | null): AbortSignal | null | undefined {
     if (!prev) {
         return next
@@ -130,31 +90,32 @@ export function mergeAbortSignal(prev?: AbortSignal | null, next?: AbortSignal |
     if (!next) {
         return prev
     }
+    return mergeAbortSignalsWithoutLifecycle([prev, next])
+}
+
+function mergeAbortSignalsWithoutLifecycle(signals: AbortSignal[]): AbortSignal | undefined {
+    const uniqueSignals = [...new Set(signals)]
+    if (!uniqueSignals.length) {
+        return void 0
+    }
+    if (uniqueSignals.length === 1) {
+        return uniqueSignals[0]
+    }
+
+    const alreadyAborted = uniqueSignals.find(signal => signal.aborted)
+    if (alreadyAborted) {
+        const controller = new AbortController()
+        controller.abort(alreadyAborted.reason)
+        return controller.signal
+    }
+
     if (typeof AbortSignal.any === 'function') {
-        return AbortSignal.any([prev, next])
+        return AbortSignal.any(uniqueSignals)
     }
 
-    const abortController = new AbortController()
-    const cleanup = () => {
-        prev.removeEventListener('abort', abortPrev)
-        next.removeEventListener('abort', abortNext)
-    }
-    const abortFrom = (source: AbortSignal) => {
-        cleanup()
-        abortController.abort(source.reason)
-    }
-    const abortPrev = () => abortFrom(prev)
-    const abortNext = () => abortFrom(next)
-
-    if (prev.aborted) {
-        abortPrev()
-    } else if (next.aborted) {
-        abortNext()
-    } else {
-        prev.addEventListener('abort', abortPrev, {once: true})
-        next.addEventListener('abort', abortNext, {once: true})
-    }
-    return abortController.signal
+    throw new TypeError(
+        'AbortSignal.any is unavailable; use mergeAbortSignalScope() or mergeConfigScope() and call cleanup() in finally'
+    )
 }
 
 export function catchCommonError(e: any, newError: (message?: string) => any) {
